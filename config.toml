@@ -1,4 +1,5 @@
 # name = "COM1"
+[serial]
 name = "../dev/ttyV0"
 baud = 9600
 read_timeout = 500
@@ -6,3 +7,22 @@ size = 8
 parity = "N"
 stop_bits = 1
 flow_control = "none"
+buffer_size = 1024
+
+[nats]
+url = "nats://localhost:4222"
+username = "client_user"
+password = "client_password"
+subject = "telegram"
+
+[telegram]
+end_tag = "NNNN"
+seq_tag = "ZCZC\\s(\\S+)\\s"
+
+[logger]
+level = "info"
+file = "serial-read.log"
+max_size = 10
+max_backups = 3
+max_age = 3
+compress = true 
