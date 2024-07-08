@@ -7,7 +7,7 @@ import (
 	serial "go.bug.st/serial"
 )
 
-const FILE_NAME = "config.toml"
+const FILE_NAME = "../config.toml"
 
 type Parameter struct {
 	Serial   SerialConfig

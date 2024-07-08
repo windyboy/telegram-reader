@@ -21,8 +21,12 @@ func SetParameter(param *config.Parameter) {
 	parameter = param
 }
 
+func InitTestLogger() {
+	InitLogger(zapcore.AddSync(os.Stdout))
+}
+
 // InitLogger initializes the SugaredLogger instance based on the provided configuration parameters.
-func InitLogger() {
+func InitLogger(output zapcore.WriteSyncer) {
 	if parameter == nil {
 		panic("logger parameter is not set")
 	}
@@ -38,13 +42,18 @@ func InitLogger() {
 	encoderConfig.EncodeLevel = zapcore.CapitalLevelEncoder
 	encoderConfig.EncodeCaller = zapcore.ShortCallerEncoder
 
-	logWriter := zapcore.AddSync(&lumberjack.Logger{
-		Filename:   parameter.Logger.Filename,
-		MaxSize:    parameter.Logger.MaxSize,    // megabytes after which new file is created
-		MaxBackups: parameter.Logger.MaxBackups, // number of backups to keep
-		MaxAge:     parameter.Logger.MaxAge,     // days to keep the log files
-		Compress:   parameter.Logger.Compress,   // whether to compress the log files
-	})
+	var logWriter zapcore.WriteSyncer
+	if output == nil {
+		logWriter = zapcore.AddSync(&lumberjack.Logger{
+			Filename:   parameter.Logger.Filename,
+			MaxSize:    parameter.Logger.MaxSize,    // megabytes after which new file is created
+			MaxBackups: parameter.Logger.MaxBackups, // number of backups to keep
+			MaxAge:     parameter.Logger.MaxAge,     // days to keep the log files
+			Compress:   parameter.Logger.Compress,   // whether to compress the log files
+		})
+	} else {
+		logWriter = output
+	}
 
 	core := zapcore.NewCore(
 		zapcore.NewJSONEncoder(encoderConfig),
@@ -61,6 +70,6 @@ func InitLogger() {
 // SugaredLogger returns the initialized SugaredLogger instance.
 // It ensures that the logger is initialized only once.
 func SugaredLogger() *zap.SugaredLogger {
-	initOnce.Do(InitLogger)
+	initOnce.Do(func() { InitLogger(nil) }) // Default initialization
 	return sugar
 }
