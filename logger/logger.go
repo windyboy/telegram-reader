@@ -2,6 +2,7 @@ package logger
 
 import (
 	"os"
+	"sync"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -9,15 +10,23 @@ import (
 	"gzzn.com/airport/serial/config"
 )
 
-var sugar *zap.SugaredLogger
+var (
+	sugar     *zap.SugaredLogger
+	parameter *config.Parameter
+	initOnce  sync.Once
+)
 
-var parameter *config.Parameter
-
+// SetParameter sets the configuration parameters for the logger.
 func SetParameter(param *config.Parameter) {
 	parameter = param
 }
 
+// InitLogger initializes the SugaredLogger instance based on the provided configuration parameters.
 func InitLogger() {
+	if parameter == nil {
+		panic("logger parameter is not set")
+	}
+
 	encoderConfig := zap.NewProductionEncoderConfig()
 	encoderConfig.TimeKey = "time"
 	encoderConfig.LevelKey = "level"
@@ -49,10 +58,9 @@ func InitLogger() {
 	sugar = logger.Sugar()
 }
 
-// SugaredLogger returns the initialized SugaredLogger instance
+// SugaredLogger returns the initialized SugaredLogger instance.
+// It ensures that the logger is initialized only once.
 func SugaredLogger() *zap.SugaredLogger {
-	if sugar == nil {
-		InitLogger()
-	}
+	initOnce.Do(InitLogger)
 	return sugar
 }
