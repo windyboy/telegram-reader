@@ -11,7 +11,7 @@ import (
 func TestGetTelegramSequence(t *testing.T) {
 	Convey("Given a telegram string", t, func() {
 
-		parameter, _ := config.LoadConfig("")
+		parameter, _ := config.LoadConfigFromEnv()
 		logger.SetParameter(&parameter)
 		logger.InitTestLogger()
 
