@@ -1,6 +1,7 @@
 package logger
 
 import (
+	"fmt"
 	"os"
 	"sync"
 
@@ -21,7 +22,22 @@ func SetParameter(param *config.Parameter) {
 	parameter = param
 }
 
+func InitLoggerWithMode() {
+	env := os.Getenv(config.TELEGRAM_MODE)
+	if env == "" {
+		env = "prod" // Default to production if no environment variable is set
+	}
+
+	switch env {
+	case "test":
+		InitTestLogger()
+	default:
+		InitLogger(nil)
+	}
+}
+
 func InitTestLogger() {
+	fmt.Println("InitTestLogger")
 	InitLogger(zapcore.AddSync(os.Stdout))
 }
 
@@ -58,7 +74,7 @@ func InitLogger(output zapcore.WriteSyncer) {
 	core := zapcore.NewCore(
 		zapcore.NewJSONEncoder(encoderConfig),
 		zapcore.NewMultiWriteSyncer(zapcore.AddSync(os.Stdout), logWriter),
-		zapcore.InfoLevel,
+		parseLogLevel(parameter.Logger.Level),
 	)
 
 	logger := zap.New(core, zap.AddCaller(), zap.AddStacktrace(zapcore.ErrorLevel))
@@ -67,9 +83,31 @@ func InitLogger(output zapcore.WriteSyncer) {
 	sugar = logger.Sugar()
 }
 
+// parseLogLevel converts the log level string to zapcore.Level
+func parseLogLevel(level string) zapcore.Level {
+	switch level {
+	case "debug":
+		return zapcore.DebugLevel
+	case "info":
+		return zapcore.InfoLevel
+	case "warn":
+		return zapcore.WarnLevel
+	case "error":
+		return zapcore.ErrorLevel
+	case "dpanic":
+		return zapcore.DPanicLevel
+	case "panic":
+		return zapcore.PanicLevel
+	case "fatal":
+		return zapcore.FatalLevel
+	default:
+		return zapcore.InfoLevel
+	}
+}
+
 // SugaredLogger returns the initialized SugaredLogger instance.
 // It ensures that the logger is initialized only once.
 func SugaredLogger() *zap.SugaredLogger {
-	initOnce.Do(func() { InitLogger(nil) }) // Default initialization
+	initOnce.Do(func() { InitLoggerWithMode() }) // Default initialization with mode
 	return sugar
 }

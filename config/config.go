@@ -1,13 +1,18 @@
 package config
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/BurntSushi/toml"
 	serial "go.bug.st/serial"
 )
 
-const FILE_NAME = "../config.toml"
+const (
+	PROD_CONFIG_FILE = "../config.toml"
+	TEST_CONFIG_FILE = "../config.test.toml"
+	TELEGRAM_MODE    = "TELE_MODE"
+)
 
 type Parameter struct {
 	Serial   SerialConfig
@@ -47,24 +52,31 @@ type LoggerConfig struct {
 	Compress   bool   `toml:"compress"`
 }
 
-func LoadConfig(filename string) (Parameter, error) {
-	if filename == "" {
-		filename = FILE_NAME
+func LoadConfigFromEnv() (Parameter, error) {
+	env := os.Getenv(TELEGRAM_MODE)
+	if env == "" {
+		env = "prod" // Default to production if no environment variable is set
 	}
-	// sugar := logger.SugaredLogger()
-	// sugar.Infof("Loading config from %s", filename)
-	file, err := os.Open(filename)
+	return loadConfig(env)
+}
+
+func loadConfig(env string) (Parameter, error) {
+	configFile := PROD_CONFIG_FILE // Default to production config
+	if env == "test" {
+		configFile = TEST_CONFIG_FILE
+		fmt.Println("Loading test environment config")
+	}
+
+	file, err := os.Open(configFile)
 	if err != nil {
-		panic(err)
-		// return Parameter{}, err
+		return Parameter{}, err
 	}
 	defer file.Close()
 
 	var config Parameter
 	if _, err := toml.NewDecoder(file).Decode(&config); err != nil {
-		panic(err)
+		return Parameter{}, err
 	}
-	// sugar.Infof("Loaded config: %v", config)
 	return config, nil
 }
 

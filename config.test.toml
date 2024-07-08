@@ -1,6 +1,6 @@
 # name = "COM1"
 [serial]
-name = "COM1"
+name = "../dev/ttyV0"
 baud = 9600
 read_timeout = 500
 size = 8
@@ -21,8 +21,8 @@ seq_tag = "ZCZC\\s(\\S+)\\s"
 
 [logger]
 level = "info"
-file = "serial-read.log"
-max_size = 10
-max_backups = 3
-max_age = 3
-compress = true 
+# file = "serial-read.log"
+# max_size = 10
+# max_backups = 3
+# max_age = 3
+# compress = true 

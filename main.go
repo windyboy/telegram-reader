@@ -37,12 +37,13 @@ func setupApp() *cli.App {
 		Name:  "serial-read",
 		Usage: "A serial port reading CLI application",
 		Before: func(c *cli.Context) error {
-			configFile := c.String("config")
-			var err error
-			parameter, err = config.LoadConfig(configFile)
-			if err != nil {
-				return fmt.Errorf("failed to load configuration: %v", err)
-			}
+			// configFile := c.String("config")
+			// var err error
+			// parameter, err = config.LoadConfigFromEnv()
+			// if err != nil {
+			// 	return fmt.Errorf("failed to load configuration: %v", err)
+			// }
+			logger.InitLoggerWithMode()
 			sugar = logger.SugaredLogger()
 			return nil
 		},
@@ -144,8 +145,10 @@ func processReceivedData(data []byte) {
 
 func main() {
 	app := setupApp()
+
+	parameter, _ := config.LoadConfigFromEnv()
 	logger.SetParameter(&parameter)
-	logger.InitLogger()
+
 	if err := app.Run(os.Args); err != nil {
 		sugar.Fatal(err)
 	}
