@@ -1,0 +1,8 @@
+# name = "COM1"
+name = "../dev/ttyV0"
+baud = 9600
+read_timeout = 500
+size = 8
+parity = "N"
+stop_bits = 1
+flow_control = "none"
