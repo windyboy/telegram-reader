@@ -1,4 +1,3 @@
-# name = "COM1"
 [serial]
 name = "../dev/ttyV0"
 baud = 9600
@@ -18,11 +17,7 @@ subject = "telegram"
 [telegram]
 end_tag = "NNNN"
 seq_tag = "ZCZC\\s(\\S+)\\s"
+pattern = "(?s)ZCZC.*?NNNN"
 
 [logger]
-level = "info"
-# file = "serial-read.log"
-# max_size = 10
-# max_backups = 3
-# max_age = 3
-# compress = true 
+level = "info" 
