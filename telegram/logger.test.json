@@ -14,7 +14,11 @@
       "encodeLevel": "lowercase",
       "encodeTime": "iso8601"
     },
-    "outputPaths": ["stdout"],  
-    "errorOutputPaths": ["stderr"]
+    "outputPaths": [
+      "stdout"
+    ],
+    "errorOutputPaths": [
+      "stderr"
+    ]
   }
 }
