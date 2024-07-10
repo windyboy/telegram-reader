@@ -9,7 +9,7 @@ import (
 	"go.uber.org/zap"
 	"gzzn.com/airport/serial/config"
 	"gzzn.com/airport/serial/logger"
-	"gzzn.com/airport/serial/nats"
+	"gzzn.com/airport/serial/queue"
 	internalSerial "gzzn.com/airport/serial/serial"
 	"gzzn.com/airport/serial/telegram"
 )
@@ -94,9 +94,9 @@ func executeReadCommand() error {
 	mode, portName := config.ReadSerialConfig(parameter.Serial)
 	sugar.Infof("Opening port: %s with mode: %+v", portName, mode)
 
-	if err := nats.InitNATS(parameter.NATS.URL); err != nil {
-		sugar.Fatalf("Error connecting to NATS server: %v", err)
-	}
+	// if err := nats.InitNATS(parameter.NATS.URL); err != nil {
+	// 	sugar.Fatalf("Error connecting to NATS server: %v", err)
+	// }
 
 	dataChannel := make(chan []byte)
 
@@ -134,7 +134,10 @@ func processReceivedData(data []byte) {
 			sugar.Infof("Publishing telegram: %s", sequence)
 		}
 
-		if err := nats.Publish(parameter.NATS.Subject, string(data)); err != nil {
+		// if err := nats.Publish(parameter.NATS.Subject, string(data)); err != nil {
+		// 	sugar.Errorf("Error publishing to NATS: %v", err)
+		// }
+		if err := queue.Publish(data); err != nil {
 			sugar.Errorf("Error publishing to NATS: %v", err)
 		}
 	}
@@ -143,12 +146,11 @@ func processReceivedData(data []byte) {
 func main() {
 	logger.Init()
 	sugar = logger.SugaredLogger()
+	queue.Init()
 	app := setupApp()
-
 	if err := config.InitParameter(); err != nil {
 		sugar.DPanicf("Failed to initialize config parameter: %v", err)
 	}
-
 	telegram.SetSugaredLogger(logger.SugaredLogger()) // Set logger
 
 	if err := app.Run(os.Args); err != nil {

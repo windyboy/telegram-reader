@@ -40,10 +40,12 @@ type SerialConfig struct {
 
 // NATSConfig holds the NATS server configuration.
 type NATSConfig struct {
-	URL      string `toml:"url"`
-	Username string `toml:"username"`
-	Password string `toml:"password"`
-	Subject  string `toml:"subject"`
+	URL       string `toml:"url"`
+	Username  string `toml:"username"`
+	Password  string `toml:"password"`
+	Subject   string `toml:"subject"`
+	ClusterId string `toml:"cluster_id"`
+	ClientId  string `toml:"client_id"`
 }
 
 // TelegramConfig holds the Telegram configuration.
