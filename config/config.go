@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	ProdConfigFile     = "../config.toml"
+	ProdConfigFile     = "./config.toml"
 	TestConfigFile     = "../config.test.toml"
 	TelegramModeEnvVar = "TELE_MODE"
 )
@@ -18,13 +18,15 @@ var (
 	parameter *Parameter
 )
 
+// Parameter holds the configuration for the application.
 type Parameter struct {
 	Serial   SerialConfig
 	NATS     NATSConfig
 	Telegram TelegramConfig
-	Logger   LoggerConfig
+	// Logger   LoggerConfig
 }
 
+// SerialConfig holds the serial port configuration.
 type SerialConfig struct {
 	Name        string `toml:"name"`
 	Baud        int    `toml:"baud"`
@@ -36,6 +38,7 @@ type SerialConfig struct {
 	BufferSize  int    `toml:"buffer_size"`
 }
 
+// NATSConfig holds the NATS server configuration.
 type NATSConfig struct {
 	URL      string `toml:"url"`
 	Username string `toml:"username"`
@@ -43,11 +46,13 @@ type NATSConfig struct {
 	Subject  string `toml:"subject"`
 }
 
+// TelegramConfig holds the Telegram configuration.
 type TelegramConfig struct {
 	EndTag string `toml:"end_tag"`
 	SeqTag string `toml:"seq_tag"`
 }
 
+// LoggerConfig holds the logger configuration.
 type LoggerConfig struct {
 	Level      string `toml:"level"`
 	Filename   string `toml:"filename"`
@@ -57,31 +62,40 @@ type LoggerConfig struct {
 	Compress   bool   `toml:"compress"`
 }
 
-// InitParameter initializes the global parameter by loading the config based on env mode.
+// InitParameter initializes the global parameter by loading the config based on the environment.
 func InitParameter() error {
-	env := getEnvOrDefault(TelegramModeEnvVar, "test")
+	env := getEnv(TelegramModeEnvVar, "test")
 	param, err := loadConfig(env)
 	if err != nil {
-		return fmt.Errorf("failed to load config: %v", err)
+		return fmt.Errorf("failed to load config: %w", err)
 	}
-	fmt.Printf("Loaded config: %+v\n", param)
 	parameter = &param
+	// fmt.Printf("Loaded config: %+v\n", param)
 	return nil
+}
+
+// GetParameter returns the initialized global parameter.
+func GetParameter() *Parameter {
+	if parameter == nil {
+		if err := InitParameter(); err != nil {
+			panic(fmt.Sprintf("Failed to initialize parameters: %v", err))
+		}
+	}
+	return parameter
 }
 
 // LoadConfigFromEnv loads the configuration parameters based on the TELE_MODE environment variable.
 func LoadConfigFromEnv() (Parameter, error) {
-	env := getEnvOrDefault(TelegramModeEnvVar, "test")
+	env := getEnv(TelegramModeEnvVar, "test")
 	return loadConfig(env)
 }
 
-// getEnvOrDefault gets the value of the environment variable or returns a default value if it's not set.
-func getEnvOrDefault(key string, defaultValue string) string {
-	value, exists := os.LookupEnv(key)
-	if !exists {
-		return defaultValue
+// getEnv retrieves the value of an environment variable or returns a default value if it's not set.
+func getEnv(key string, defaultValue string) string {
+	if value, exists := os.LookupEnv(key); exists {
+		return value
 	}
-	return value
+	return defaultValue
 }
 
 // loadConfig loads the configuration parameters based on the specified environment.
@@ -107,7 +121,7 @@ func getConfigFileForEnv(env string) string {
 	case "prod":
 		return ProdConfigFile
 	case "test":
-		fmt.Println("Loading test environment config")
+		// fmt.Println("Loading test environment config")
 		return TestConfigFile
 	default:
 		return ProdConfigFile
@@ -116,17 +130,15 @@ func getConfigFileForEnv(env string) string {
 
 // ReadSerialConfig converts the SerialConfig to a serial.Mode and returns the name of the serial port.
 func ReadSerialConfig(serialConfig SerialConfig) (*serial.Mode, string) {
-	mode := &serial.Mode{
+	return &serial.Mode{
 		BaudRate: serialConfig.Baud,
 		DataBits: serialConfig.Size,
 		Parity:   parseParity(serialConfig.Parity),
 		StopBits: parseStopBits(serialConfig.StopBits),
-		// ReadTimeout: time.Duration(cfg.ReadTimeout) * time.Millisecond,
-	}
-	return mode, serialConfig.Name
+	}, serialConfig.Name
 }
 
-// parseParity converts the parity string to the corresponding serial.Parity value.
+// parseParity converts the parity string to a corresponding serial.Parity value.
 func parseParity(parity string) serial.Parity {
 	switch parity {
 	case "N":
@@ -150,13 +162,4 @@ func parseStopBits(stopBits int) serial.StopBits {
 	default:
 		return serial.OneStopBit
 	}
-}
-
-func GetParameter() *Parameter {
-	if parameter == nil {
-		if err := InitParameter(); err != nil {
-			panic(fmt.Sprintf("Failed to initialize parameters: %v", err))
-		}
-	}
-	return parameter
 }

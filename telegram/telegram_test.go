@@ -10,21 +10,15 @@ import (
 
 func TestGetTelegramSequence(t *testing.T) {
 	Convey("Given a telegram string", t, func() {
+		logger.Init()
 		if err := config.InitParameter(); err != nil {
 			t.Fatalf("Failed to initialize config parameter: %v", err)
 		}
-		parameter := config.GetParameter() // Assuming there's a method to retrieve the loaded parameter
-		loggerConfig := logger.LoggerConfig{
-			Level:      "debug", // Set the log level to debug or any desired level
-			Filename:   "",
-			MaxSize:    0,
-			MaxBackups: 0,
-			MaxAge:     0,
-			Compress:   false,
-		}
-		logger.InitLogger(loggerConfig) // Set logger config
+		sugar = logger.SugaredLogger()
 
-		telegram := `ZCZC TMQ2627 151600
+		SetSugaredLogger(sugar)
+
+		text := `ZCZC TMQ2627 151600
 
 
 FF ZBTJZXZX
@@ -43,9 +37,9 @@ FF ZBTJZXZX
 
 NNNN`
 		Convey("When the telegram is matched by the sequence pattern", func() {
-			seqPattern := parameter.Telegram.SeqTag
+			seqPattern := "ZCZC\\s(\\S+)\\s"
 			Convey("Then the sequence is returned", func() {
-				seq := GetTelegramSequence(telegram, seqPattern)
+				seq := GetTelegramSequence(text, seqPattern)
 				So(seq, ShouldEqual, "TMQ2627")
 			})
 		})

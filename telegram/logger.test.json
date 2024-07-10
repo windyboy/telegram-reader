@@ -1,0 +1,20 @@
+{
+  "zapConfig": {
+    "level": "info",
+    "development": false,
+    "encoding": "json",
+    "encoderConfig": {
+      "messageKey": "message",
+      "levelKey": "level",
+      "timeKey": "ts",
+      "nameKey": "logger",
+      "callerKey": "caller",
+      "stacktraceKey": "stacktrace",
+      "lineEnding": "\n",
+      "encodeLevel": "lowercase",
+      "encodeTime": "iso8601"
+    },
+    "outputPaths": ["stdout"],  
+    "errorOutputPaths": ["stderr"]
+  }
+}

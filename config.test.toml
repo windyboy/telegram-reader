@@ -18,6 +18,3 @@ subject = "telegram"
 end_tag = "NNNN"
 seq_tag = "ZCZC\\s(\\S+)\\s"
 pattern = "(?s)ZCZC.*?NNNN"
-
-[logger]
-level = "info" 

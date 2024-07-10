@@ -18,11 +18,3 @@ subject = "telegram"
 [telegram]
 end_tag = "NNNN"
 seq_tag = "ZCZC\\s(\\S+)\\s"
-
-[logger]
-level = "info"
-file = "serial-read.log"
-max_size = 10
-max_backups = 3
-max_age = 3
-compress = true 

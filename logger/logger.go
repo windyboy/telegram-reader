@@ -1,7 +1,10 @@
 package logger
 
 import (
+	"encoding/json"
+	"fmt"
 	"os"
+	"path/filepath"
 	"sync"
 
 	"go.uber.org/zap"
@@ -9,108 +12,146 @@ import (
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
+const (
+	TestConfigFileName = "logger.test.json"
+	ProdConfigFileName = "logger.json"
+	EnvTest            = "test"
+	EnvProd            = "prod"
+)
+
+// LoggerConfig represents the configuration for the logger.
 type LoggerConfig struct {
-	Level      string
-	Filename   string
-	MaxSize    int
-	MaxBackups int
-	MaxAge     int
-	Compress   bool
+	ZapConfig        zap.Config       `json:"zapConfig"`
+	LumberjackConfig LumberjackConfig `json:"lumberjackConfig"`
 }
 
-const (
-	EnvTest = "test"
-	EnvProd = "prod"
-)
+// LumberjackConfig represents the configuration for lumberjack logging.
+type LumberjackConfig struct {
+	Filename   string `json:"filename"`
+	MaxSize    int    `json:"maxSize"`
+	MaxBackups int    `json:"maxBackups"`
+	MaxAge     int    `json:"maxAge"`
+	Compress   bool   `json:"compress"`
+}
 
 var (
 	sugar    *zap.SugaredLogger
-	config   LoggerConfig
 	initOnce sync.Once
-	env      string
 )
 
 // InitLogger initializes the logger configuration.
 func InitLogger(loggerConfig LoggerConfig) {
-	config = loggerConfig
 	Init()
 }
 
 // Init initializes the logger. It ensures that the logger is initialized only once.
 func Init() {
 	initOnce.Do(func() {
-		env = os.Getenv("TELE_MODE")
-		if env == "" {
-			env = EnvTest // Default to test if no environment variable is set
+		env := getEnv()
+		configFile, err := getConfigFile(env)
+		if err != nil {
+			fmt.Printf("Error finding config file: %v\n", err)
+			return
 		}
-
-		switch env {
-		case EnvProd:
-			InitProductionLogger()
-		default:
-			InitTestLogger()
+		if err := InitLoggerFromFile(configFile, env); err != nil {
+			fmt.Printf("Error initializing logger: %v\n", err)
 		}
 	})
 }
 
-// InitTestLogger initializes the logger for the testing environment.
-func InitTestLogger() {
-	initLogger(zapcore.AddSync(os.Stdout))
+// getEnv retrieves the logging environment from the TELE_MODE environment variable.
+func getEnv() string {
+	env := os.Getenv("TELE_MODE")
+	if env == "" {
+		return EnvTest // Default to test if no environment variable is set.
+	}
+	return env
 }
 
-// InitProductionLogger initializes the logger for the production environment.
-func InitProductionLogger() {
-	initLogger(nil)
-}
-
-// initLogger initializes the SugaredLogger instance based on the provided configuration parameters.
-func initLogger(output zapcore.WriteSyncer) {
-	if config == (LoggerConfig{}) {
-		panic("logger configuration is not set")
+// getConfigFile determines the configuration file path based on the environment.
+func getConfigFile(env string) (string, error) {
+	var configFileName string
+	if env == EnvProd {
+		configFileName = ProdConfigFileName
+	} else {
+		configFileName = TestConfigFileName
 	}
 
-	encoderConfig := buildEncoderConfig()
-	logWriter := getLogWriter(output)
+	// Get the current working directory
+	absPath, err := os.Getwd()
+	if err != nil {
+		return "", fmt.Errorf("cannot determine current working directory: %w", err)
+	}
+
+	// Combine the current working directory with the config file name
+	configFile := filepath.Join(absPath, configFileName)
+	if _, err := os.Stat(configFile); err != nil {
+		return "", fmt.Errorf("cannot find config file: %w", err)
+	}
+
+	return configFile, nil
+}
+
+// InitLoggerFromFile initializes the logger using the provided configuration file.
+func InitLoggerFromFile(configFile, env string) error {
+	// fmt.Printf("Loading config from file: %s\n", configFile)
+	config, err := loadConfig(configFile)
+	if err != nil {
+		return fmt.Errorf("error loading config: %w", err)
+	}
+
+	var logWriter zapcore.WriteSyncer
+	if env == EnvProd {
+		logWriter = zapcore.AddSync(&lumberjack.Logger{
+			Filename:   config.LumberjackConfig.Filename,
+			MaxSize:    config.LumberjackConfig.MaxSize,
+			MaxBackups: config.LumberjackConfig.MaxBackups,
+			MaxAge:     config.LumberjackConfig.MaxAge,
+			Compress:   config.LumberjackConfig.Compress,
+		})
+	} else {
+		logWriter = zapcore.AddSync(os.Stdout)
+	}
+
+	encoder := zapcore.NewJSONEncoder(config.ZapConfig.EncoderConfig)
+	level := parseLogLevel(config.ZapConfig.Level.String())
 
 	core := zapcore.NewCore(
-		zapcore.NewJSONEncoder(encoderConfig),
+		encoder,
 		zapcore.NewMultiWriteSyncer(zapcore.AddSync(os.Stdout), logWriter),
-		parseLogLevel(config.Level),
+		level,
 	)
 
 	logger := zap.New(core, zap.AddCaller(), zap.AddStacktrace(zapcore.ErrorLevel))
-	defer logger.Sync()
+	if logger == nil {
+		return fmt.Errorf("failed to create logger instance")
+	}
 
 	sugar = logger.Sugar()
+	return nil
 }
 
-// buildEncoderConfig builds the encoder configuration for the logger.
-func buildEncoderConfig() zapcore.EncoderConfig {
-	encoderConfig := zap.NewProductionEncoderConfig()
-	encoderConfig.TimeKey = "time"
-	encoderConfig.LevelKey = "level"
-	encoderConfig.NameKey = "logger"
-	encoderConfig.CallerKey = "caller"
-	encoderConfig.MessageKey = "msg"
-	encoderConfig.StacktraceKey = "stacktrace"
-	encoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
-	encoderConfig.EncodeLevel = zapcore.CapitalLevelEncoder
-	encoderConfig.EncodeCaller = zapcore.ShortCallerEncoder
-	return encoderConfig
-}
-
-// getLogWriter returns the log writer based on the output provided.
-func getLogWriter(output zapcore.WriteSyncer) zapcore.WriteSyncer {
-	if output == nil {
-		return zapcore.AddSync(&lumberjack.Logger{
-			Filename:   config.Filename,
-			MaxSize:    config.MaxSize,    // megabytes after which new file is created
-			MaxBackups: config.MaxBackups, // number of backups to keep
-			MaxAge:     config.MaxAge,     // days to keep the log files
-			Compress:   config.Compress,   // whether to compress the log files
-		})
+// loadConfig loads the logger configuration from the given file.
+func loadConfig(configFile string) (LoggerConfig, error) {
+	// fmt.Printf("loading config: %s\n", configFile)
+	file, err := os.Open(configFile)
+	if err != nil {
+		fmt.Printf("error opening file: %v\n", err)
+		return LoggerConfig{}, err
 	}
-	return output
+	defer file.Close()
+
+	var config LoggerConfig
+	if err := json.NewDecoder(file).Decode(&config); err != nil {
+		return LoggerConfig{}, err
+	}
+	return config, nil
+}
+
+// SugaredLogger returns the initialized SugaredLogger instance.
+func SugaredLogger() *zap.SugaredLogger {
+	Init() // Ensure initialization
+	return sugar
 }
 
 // parseLogLevel converts the log level string to zapcore.Level.
@@ -133,11 +174,4 @@ func parseLogLevel(level string) zapcore.Level {
 	default:
 		return zapcore.InfoLevel
 	}
-}
-
-// SugaredLogger returns the initialized SugaredLogger instance.
-// It ensures that the logger is initialized only once.
-func SugaredLogger() *zap.SugaredLogger {
-	Init() // Ensure initialization
-	return sugar
 }

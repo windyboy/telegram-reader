@@ -141,11 +141,15 @@ func processReceivedData(data []byte) {
 }
 
 func main() {
+	logger.Init()
+	sugar = logger.SugaredLogger()
 	app := setupApp()
 
-	parameter, _ := config.LoadConfigFromEnv()
-	logger.SetParameter(&parameter)
-	telegram.SetSugaredLogger(logger.SugaredLogger())
+	if err := config.InitParameter(); err != nil {
+		sugar.DPanicf("Failed to initialize config parameter: %v", err)
+	}
+
+	telegram.SetSugaredLogger(logger.SugaredLogger()) // Set logger
 
 	if err := app.Run(os.Args); err != nil {
 		sugar.Fatal(err)

@@ -6,7 +6,7 @@ import (
 	"sync"
 
 	"go.uber.org/zap"
-	"gzzn.com/airport/serial/logger"
+	"gzzn.com/airport/serial/logger" // TODO: remove
 )
 
 var (
@@ -15,20 +15,22 @@ var (
 	sugar  *zap.SugaredLogger
 )
 
-// func init() {
-// 	// Initialize sugared logger once during package initialization
-// 	sugar = logger.SugaredLogger()
-// }
-
 // SetSugaredLogger allows the user to set a custom sugared logger
 func SetSugaredLogger(sugaredLogger *zap.SugaredLogger) {
 	sugar = sugaredLogger
 }
 
+// ensureLogger checks if the sugared logger is initialized, and initializes it if not.
+func ensureLogger() {
+	if sugar == nil {
+		SetSugaredLogger(logger.SugaredLogger())
+	}
+}
+
 // Append adds data to the buffer, checks for matches against the telegram end tag,
 // and returns the matched telegram if found.
 func Append(data string, telegramEndTag string) string {
-	ensureLoggerInitialized()
+	ensureLogger()
 	mu.Lock()
 	buffer.WriteString(data)
 	currentBuffer := buffer.String()
@@ -47,7 +49,7 @@ func Append(data string, telegramEndTag string) string {
 // GetTelegramSequence extracts and returns the telegram sequence from the given telegram
 // using the provided sequence pattern. If no sequence is found, it returns an empty string.
 func GetTelegramSequence(telegram string, seqPattern string) string {
-	ensureLoggerInitialized()
+	ensureLogger()
 	re, err := regexp.Compile(seqPattern)
 	if err != nil {
 		sugar.Fatalf("Error compiling sequence pattern: %v", err)
@@ -80,10 +82,4 @@ func isTelegramEndTagMatched(telegramEndTag string, data string) bool {
 	}
 
 	return re.MatchString(data)
-}
-
-func ensureLoggerInitialized() {
-	if sugar == nil {
-		sugar = logger.SugaredLogger()
-	}
 }

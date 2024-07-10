@@ -1,0 +1,20 @@
+{
+    "level": "info",
+    "outputPaths": ["stdout"],
+    "errorOutputPaths": ["stderr"],
+    "encoding": "json",
+    "encoderConfig": {
+      "messageKey": "message",
+      "levelKey": "level",
+      "levelEncoder": "lowercase",
+      "timeKey": "time",
+      "timeEncoder": "iso8601"
+    },
+    "lumberjackConfig": {
+      "filename": "logs/app.log",
+      "maxSize": 10,
+      "maxBackups": 3,
+      "maxAge": 30,
+      "compress": true
+    }
+  }
