@@ -5,13 +5,19 @@ import (
 	"regexp"
 	"sync"
 
+	"go.uber.org/zap"
 	"gzzn.com/airport/serial/logger"
 )
 
 var (
 	buffer bytes.Buffer // Buffer to store incoming data
 	mu     sync.Mutex   // Mutex to protect buffer access
+	sugar  *zap.SugaredLogger
 )
+
+func SetSugaredLogger(sugaredLogger *zap.SugaredLogger) {
+	sugar = sugaredLogger
+}
 
 // Append adds data to the buffer, checks for matches against the telegram end tag,
 // and returns the matched telegram if found.
@@ -39,7 +45,7 @@ func Append(data string, telegramEndTag string) string {
 // GetTelegramSequence extracts and returns the telegram sequence from the given telegram
 // using the provided sequence pattern. If no sequence is found, it returns an empty string.
 func GetTelegramSequence(telegram string, seqPattern string) string {
-	sugar := logger.SugaredLogger()
+	// sugar := logger.SugaredLogger()
 
 	// Compile the regular expression for the sequence pattern.
 	re, err := regexp.Compile(seqPattern)
