@@ -17,4 +17,4 @@ subject = "telegram"
 [telegram]
 end_tag = "NNNN"
 seq_tag = "ZCZC\\s(\\S+)\\s"
-pattern = "(?s)ZCZC.*?NNNN"
+telegram_pattern = "(?s)ZCZC.*?NNNN"

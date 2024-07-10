@@ -64,6 +64,22 @@ func GetTelegramSequence(telegram string, seqPattern string) string {
 	return ""
 }
 
+func GetTelegramFromText(text string, pattern string) []string {
+	ensureLogger()
+	re, err := regexp.Compile(pattern)
+	if err != nil {
+		sugar.Fatalf("Error compiling telegram pattern: %v", err)
+	}
+
+	matches := re.FindAllStringIndex(text, -1)
+	telegrams := make([]string, len(matches))
+	for i, match := range matches {
+		telegrams[i] = text[match[0]:match[1]]
+	}
+
+	return telegrams
+}
+
 // processData checks if the given data matches the provided telegram end tag.
 // If a match is found, it resets the buffer and returns the data, otherwise returns an empty string.
 func processData(telegramEndTag string, data string) string {
