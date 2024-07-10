@@ -1,52 +1,91 @@
 package logger
 
 import (
-	"fmt"
 	"os"
 	"sync"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"gopkg.in/natefinch/lumberjack.v2"
-	"gzzn.com/airport/serial/config"
+)
+
+type LoggerConfig struct {
+	Level      string
+	Filename   string
+	MaxSize    int
+	MaxBackups int
+	MaxAge     int
+	Compress   bool
+}
+
+const (
+	EnvTest = "test"
+	EnvProd = "prod"
 )
 
 var (
-	sugar     *zap.SugaredLogger
-	parameter *config.Parameter
-	initOnce  sync.Once
+	sugar    *zap.SugaredLogger
+	config   LoggerConfig
+	initOnce sync.Once
+	env      string
 )
 
-// SetParameter sets the configuration parameters for the logger.
-func SetParameter(param *config.Parameter) {
-	parameter = param
+// InitLogger initializes the logger configuration.
+func InitLogger(loggerConfig LoggerConfig) {
+	config = loggerConfig
+	Init()
 }
 
-func InitLoggerWithMode() {
-	env := os.Getenv(config.TELEGRAM_MODE)
-	if env == "" {
-		env = "prod" // Default to production if no environment variable is set
-	}
+// Init initializes the logger. It ensures that the logger is initialized only once.
+func Init() {
+	initOnce.Do(func() {
+		env = os.Getenv("TELE_MODE")
+		if env == "" {
+			env = EnvTest // Default to test if no environment variable is set
+		}
 
-	switch env {
-	case "test":
-		InitTestLogger()
-	default:
-		InitLogger(nil)
-	}
+		switch env {
+		case EnvProd:
+			InitProductionLogger()
+		default:
+			InitTestLogger()
+		}
+	})
 }
 
+// InitTestLogger initializes the logger for the testing environment.
 func InitTestLogger() {
-	fmt.Println("InitTestLogger")
-	InitLogger(zapcore.AddSync(os.Stdout))
+	initLogger(zapcore.AddSync(os.Stdout))
 }
 
-// InitLogger initializes the SugaredLogger instance based on the provided configuration parameters.
-func InitLogger(output zapcore.WriteSyncer) {
-	if parameter == nil {
-		panic("logger parameter is not set")
+// InitProductionLogger initializes the logger for the production environment.
+func InitProductionLogger() {
+	initLogger(nil)
+}
+
+// initLogger initializes the SugaredLogger instance based on the provided configuration parameters.
+func initLogger(output zapcore.WriteSyncer) {
+	if config == (LoggerConfig{}) {
+		panic("logger configuration is not set")
 	}
 
+	encoderConfig := buildEncoderConfig()
+	logWriter := getLogWriter(output)
+
+	core := zapcore.NewCore(
+		zapcore.NewJSONEncoder(encoderConfig),
+		zapcore.NewMultiWriteSyncer(zapcore.AddSync(os.Stdout), logWriter),
+		parseLogLevel(config.Level),
+	)
+
+	logger := zap.New(core, zap.AddCaller(), zap.AddStacktrace(zapcore.ErrorLevel))
+	defer logger.Sync()
+
+	sugar = logger.Sugar()
+}
+
+// buildEncoderConfig builds the encoder configuration for the logger.
+func buildEncoderConfig() zapcore.EncoderConfig {
 	encoderConfig := zap.NewProductionEncoderConfig()
 	encoderConfig.TimeKey = "time"
 	encoderConfig.LevelKey = "level"
@@ -57,33 +96,24 @@ func InitLogger(output zapcore.WriteSyncer) {
 	encoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
 	encoderConfig.EncodeLevel = zapcore.CapitalLevelEncoder
 	encoderConfig.EncodeCaller = zapcore.ShortCallerEncoder
-
-	var logWriter zapcore.WriteSyncer
-	if output == nil {
-		logWriter = zapcore.AddSync(&lumberjack.Logger{
-			Filename:   parameter.Logger.Filename,
-			MaxSize:    parameter.Logger.MaxSize,    // megabytes after which new file is created
-			MaxBackups: parameter.Logger.MaxBackups, // number of backups to keep
-			MaxAge:     parameter.Logger.MaxAge,     // days to keep the log files
-			Compress:   parameter.Logger.Compress,   // whether to compress the log files
-		})
-	} else {
-		logWriter = output
-	}
-
-	core := zapcore.NewCore(
-		zapcore.NewJSONEncoder(encoderConfig),
-		zapcore.NewMultiWriteSyncer(zapcore.AddSync(os.Stdout), logWriter),
-		parseLogLevel(parameter.Logger.Level),
-	)
-
-	logger := zap.New(core, zap.AddCaller(), zap.AddStacktrace(zapcore.ErrorLevel))
-	defer logger.Sync()
-
-	sugar = logger.Sugar()
+	return encoderConfig
 }
 
-// parseLogLevel converts the log level string to zapcore.Level
+// getLogWriter returns the log writer based on the output provided.
+func getLogWriter(output zapcore.WriteSyncer) zapcore.WriteSyncer {
+	if output == nil {
+		return zapcore.AddSync(&lumberjack.Logger{
+			Filename:   config.Filename,
+			MaxSize:    config.MaxSize,    // megabytes after which new file is created
+			MaxBackups: config.MaxBackups, // number of backups to keep
+			MaxAge:     config.MaxAge,     // days to keep the log files
+			Compress:   config.Compress,   // whether to compress the log files
+		})
+	}
+	return output
+}
+
+// parseLogLevel converts the log level string to zapcore.Level.
 func parseLogLevel(level string) zapcore.Level {
 	switch level {
 	case "debug":
@@ -108,6 +138,6 @@ func parseLogLevel(level string) zapcore.Level {
 // SugaredLogger returns the initialized SugaredLogger instance.
 // It ensures that the logger is initialized only once.
 func SugaredLogger() *zap.SugaredLogger {
-	initOnce.Do(func() { InitLoggerWithMode() }) // Default initialization with mode
+	Init() // Ensure initialization
 	return sugar
 }
