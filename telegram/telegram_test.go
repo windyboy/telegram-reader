@@ -3,22 +3,32 @@ package telegram
 import (
 	"testing"
 
-	. "github.com/smartystreets/goconvey/convey"
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
+	"go.uber.org/zap"
 	"gzzn.com/airport/serial/config"
 	"gzzn.com/airport/serial/logger"
 )
 
-func TestGetTelegramSequence(t *testing.T) {
-	Convey("Given a telegram string", t, func() {
-		logger.Init()
-		if err := config.InitParameter(); err != nil {
-			t.Fatalf("Failed to initialize config parameter: %v", err)
-		}
-		sugar = logger.SugaredLogger()
+func TestTelegram(t *testing.T) {
+	RegisterFailHandler(Fail)
+	RunSpecs(t, "Telegram Suite")
+}
 
-		SetSugaredLogger(sugar)
+var _ = Describe("Telegram", func() {
+	Context("Given a telegram string", func() {
+		var sugar *zap.SugaredLogger
 
-		text := `ZCZC TMQ2627 151600
+		BeforeEach(func() {
+			logger.Init()
+			err := config.InitParameter()
+			Expect(err).NotTo(HaveOccurred(), "Failed to initialize config parameter")
+			sugar = logger.SugaredLogger()
+			SetSugaredLogger(sugar)
+		})
+
+		It("should return the sequence when the telegram is matched by the sequence pattern", func() {
+			text := `ZCZC TMQ2627 151600
 
 
 FF ZBTJZXZX
@@ -36,12 +46,9 @@ FF ZBTJZXZX
 
 
 NNNN`
-		Convey("When the telegram is matched by the sequence pattern", func() {
 			seqPattern := "ZCZC\\s(\\S+)\\s"
-			Convey("Then the sequence is returned", func() {
-				seq := GetTelegramSequence(text, seqPattern)
-				So(seq, ShouldEqual, "TMQ2627")
-			})
+			seq := GetTelegramSequence(text, seqPattern)
+			Expect(seq).To(Equal("TMQ2627"))
 		})
 	})
-}
+})

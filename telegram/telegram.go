@@ -6,7 +6,7 @@ import (
 	"sync"
 
 	"go.uber.org/zap"
-	"gzzn.com/airport/serial/logger" // TODO: remove
+	"gzzn.com/airport/serial/logger"
 )
 
 var (
