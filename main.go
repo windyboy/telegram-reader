@@ -148,6 +148,8 @@ func main() {
 
 	parameter, _ := config.LoadConfigFromEnv()
 	logger.SetParameter(&parameter)
+	logger.InitLogger()
+	telegram.SetSugaredLogger(logger.SugaredLogger())
 
 	if err := app.Run(os.Args); err != nil {
 		sugar.Fatal(err)
