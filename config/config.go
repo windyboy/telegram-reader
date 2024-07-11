@@ -47,8 +47,9 @@ type NATSConfig struct {
 
 // TelegramConfig holds the Telegram configuration.
 type TelegramConfig struct {
-	EndTag string `toml:"end_tag"`
-	SeqTag string `toml:"seq_tag"`
+	EndTag       string `toml:"end_tag"`
+	SeqTag       string `toml:"seq_tag"`
+	SplitPattern string `toml: "split_pattern"`
 }
 
 // InitParameter initializes the global parameter by loading the config based on the environment.

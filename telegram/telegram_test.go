@@ -5,139 +5,80 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+
 	"gzzn.com/airport/serial/config"
 	"gzzn.com/airport/serial/logger"
 )
 
+// TestTelegram runs the test suite for the Telegram package.
 func TestTelegram(t *testing.T) {
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "Telegram Suite")
 }
 
-var _ = Describe("Telegram", func() {
-	Context("Telegram test mode", func() {
+var _ = Describe("Telegram Processing", func() {
+	// Setup common to all tests in this suite.
+	BeforeEach(func() {
+		logger.Init()
+		Init()
+		err := config.InitParameter()
+		Expect(err).NotTo(HaveOccurred(), "Config parameters should initialize without error.")
+		parameters, _ := config.GetParameter()
+		telegramConfig = parameters.Telegram
+	})
 
-		BeforeEach(func() {
-			logger.Init()
-			Init()
-			err := config.InitParameter()
-			Expect(err).NotTo(HaveOccurred(), "Failed to initialize config parameter")
-		})
-
-		Context("A complete telegram string", func() {
-			text := `ZCZC TMQ2627 151600
-
-
+	Context("When processing a complete telegram string", func() {
+		// Example telegram string.
+		const telegramText = `ZCZC TMQ2627 151600
 FF ZBTJZXZX
-
-
 151600 ZGSDZTZX
-
-
 (DEP-OKA2832/A2426-ZGSD1600-ZBTJ)
-
-
-
-
-
-
-
 NNNN`
 
-			It("should return the sequence when the telegram is matched by the sequence pattern", func() {
+		It("Extracts the correct sequence from the telegram", func() {
+			// Define the pattern to extract the sequence.
+			var sequencePattern = telegramConfig.SeqTag
+			// Extract the sequence.
+			sequence := GetTelegramSequence(telegramText, sequencePattern)
+			// Verify the extracted sequence is as expected.
+			Expect(sequence).To(Equal("TMQ2627"), "The extracted sequence should match the expected value.")
+		})
+	})
 
-				seqPattern := "ZCZC\\s(\\S+)\\s"
-				seq := GetTelegramSequence(text, seqPattern)
-				Expect(seq).To(Equal("TMQ2627"))
-			})
-		}) //End of Context
-
-		Context("A string with 2 telegrams", func() {
-			text := `
-ZCZC TMQ2611 151524
-
-
+	Context("When processing a string containing multiple telegrams", func() {
+		// Example string containing two telegrams.
+		const telegramsText = `ZCZC TMQ2611 151524
 FF ZBTJZPZX
-
-
 151524 ZGGGZPZX
-
-
 (ARR-CSN3136/A0006-ZBTJ-ZGGG1521)
-
-
-
-
-
-
-
 NNNN
-
 ZCZC TMQ2609 151524
-
-
 FF ZBTJZPZX
-
-
 151523 ZBACZQZX
-
-
 (ARR-CXA8324/A4001-ZLXY-ZBTJ1522)
+NNNN`
 
-
-
-
-
-
-
-NNNN
-			`
-			pattern := "(?s)ZCZC.*?NNNN"
-			telegrams := GetTelegramFromText(text, pattern)
-			t1 := `ZCZC TMQ2611 151524
-
-
+		// Expected individual telegrams after splitting.
+		const expectedFirstTelegram = `ZCZC TMQ2611 151524
 FF ZBTJZPZX
-
-
 151524 ZGGGZPZX
-
-
 (ARR-CSN3136/A0006-ZBTJ-ZGGG1521)
-
-
-
-
-
-
-
 NNNN`
-			t2 := `ZCZC TMQ2609 151524
-
-
+		const expectedSecondTelegram = `ZCZC TMQ2609 151524
 FF ZBTJZPZX
-
-
 151523 ZBACZQZX
-
-
 (ARR-CXA8324/A4001-ZLXY-ZBTJ1522)
-
-
-
-
-
-
-
 NNNN`
-			It("should return 2 telegrams", func() {
-				Expect(len(telegrams)).To(Equal(2))
-				Expect(telegrams[0]).To(Equal(t1))
-				Expect(telegrams[1]).To(Equal(t2))
 
-			})
-
-		}) //End of Context
-
-	}) //End of Describe
-}) //End of Context
+		It("Correctly splits the string into individual telegrams", func() {
+			// Define the pattern to split the telegrams.
+			var splitPattern = "(?s)ZCZC.*?NNNN"
+			// Split the string into telegrams.
+			telegrams := GetTelegramFromText(telegramsText, splitPattern)
+			// Verify the number of telegrams and their content.
+			Expect(telegrams).To(HaveLen(2), "There should be exactly two telegrams.")
+			Expect(telegrams[0]).To(Equal(expectedFirstTelegram), "The first telegram should match the expected content.")
+			Expect(telegrams[1]).To(Equal(expectedSecondTelegram), "The second telegram should match the expected content.")
+		})
+	})
+})

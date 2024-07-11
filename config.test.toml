@@ -19,4 +19,4 @@ client_id = "serial-client"
 [telegram]
 end_tag = "NNNN"
 seq_tag = "ZCZC\\s(\\S+)\\s"
-telegram_pattern = "(?s)ZCZC.*?NNNN"
+split_pattern = "(?s)ZCZC.*?NNNN"
