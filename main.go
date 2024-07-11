@@ -127,7 +127,7 @@ func executeListCommand() error {
 
 // processReceivedData processes received data from the serial port and publishes to NATS
 func processReceivedData(data []byte) {
-	if telegramData := telegram.Append(string(data), parameter.Telegram.EndTag); telegramData != "" {
+	if telegramData := telegram.Append(string(data)); telegramData != "" {
 		sugar.Debugf("Publishing data to NATS: %s", telegramData)
 
 		if sequence := telegram.GetTelegramSequence(telegramData, parameter.Telegram.SeqTag); sequence != "" {
@@ -151,7 +151,7 @@ func main() {
 	if err := config.InitParameter(); err != nil {
 		sugar.DPanicf("Failed to initialize config parameter: %v", err)
 	}
-	telegram.SetSugaredLogger(logger.SugaredLogger()) // Set logger
+	telegram.Init()
 
 	if err := app.Run(os.Args); err != nil {
 		sugar.Fatal(err)

@@ -6,39 +6,43 @@ import (
 	"sync"
 
 	"go.uber.org/zap"
+	"gzzn.com/airport/serial/config"
 	"gzzn.com/airport/serial/logger"
 )
 
 var (
-	buffer bytes.Buffer // Buffer to store incoming data
-	mu     sync.Mutex   // Mutex to protect buffer access
-	sugar  *zap.SugaredLogger
+	buffer         bytes.Buffer // Buffer to store incoming data
+	mu             sync.Mutex   // Mutex to protect buffer access
+	sugar          *zap.SugaredLogger
+	telegramConfig config.TelegramConfig
+	patternEndTag  *regexp.Regexp
 )
 
-// SetSugaredLogger allows the user to set a custom sugared logger
-func SetSugaredLogger(sugaredLogger *zap.SugaredLogger) {
-	sugar = sugaredLogger
-}
-
-// ensureLogger checks if the sugared logger is initialized, and initializes it if not.
-func ensureLogger() {
-	if sugar == nil {
-		SetSugaredLogger(logger.SugaredLogger())
+func Init() {
+	if param, err := config.GetParameter(); err != nil {
+		panic("Error getting parameter")
+	} else {
+		telegramConfig = param.Telegram
+		patternEndTag = regexp.MustCompile(telegramConfig.EndTag)
 	}
+	logger.Init()
+	sugar = logger.SugaredLogger()
 }
 
-// Append adds data to the buffer, checks for matches against the telegram end tag,
-// and returns the matched telegram if found.
-func Append(data string, telegramEndTag string) string {
-	ensureLogger()
+// Append adds data to the buffer and checks for matches against the telegram end tag.
+// If a match is found, it returns the matched telegram, otherwise returns an empty string.
+func Append(data string) string {
+
 	mu.Lock()
+	defer mu.Unlock()
+
 	buffer.WriteString(data)
 	currentBuffer := buffer.String()
-	mu.Unlock()
 
 	sugar.Debugf("Buffer: %s", currentBuffer)
 
-	if match := processData(telegramEndTag, currentBuffer); match != "" {
+	if match := processData(currentBuffer); match != "" {
+		buffer.Reset() // Reset the buffer if a match is found
 		sugar.Debugf("Matched telegram: %s", match)
 		return match
 	}
@@ -49,7 +53,7 @@ func Append(data string, telegramEndTag string) string {
 // GetTelegramSequence extracts and returns the telegram sequence from the given telegram
 // using the provided sequence pattern. If no sequence is found, it returns an empty string.
 func GetTelegramSequence(telegram string, seqPattern string) string {
-	ensureLogger()
+
 	re, err := regexp.Compile(seqPattern)
 	if err != nil {
 		sugar.Fatalf("Error compiling sequence pattern: %v", err)
@@ -64,38 +68,24 @@ func GetTelegramSequence(telegram string, seqPattern string) string {
 	return ""
 }
 
+// GetTelegramFromText extracts and returns all telegrams from the given text
+// using the provided telegram pattern.
 func GetTelegramFromText(text string, pattern string) []string {
-	ensureLogger()
+
 	re, err := regexp.Compile(pattern)
 	if err != nil {
 		sugar.Fatalf("Error compiling telegram pattern: %v", err)
 	}
 
-	matches := re.FindAllStringIndex(text, -1)
-	telegrams := make([]string, len(matches))
-	for i, match := range matches {
-		telegrams[i] = text[match[0]:match[1]]
-	}
-
-	return telegrams
+	matches := re.FindAllString(text, -1)
+	return matches
 }
 
 // processData checks if the given data matches the provided telegram end tag.
-// If a match is found, it resets the buffer and returns the data, otherwise returns an empty string.
-func processData(telegramEndTag string, data string) string {
-	if isTelegramEndTagMatched(telegramEndTag, data) {
-		buffer.Reset() // Reset the buffer if a match is found
+// If a match is found, it returns the data, otherwise returns an empty string.
+func processData(data string) string {
+	if patternEndTag.MatchString(data) {
 		return data
 	}
 	return ""
-}
-
-// isTelegramEndTagMatched checks if the given data matches the provided telegram end tag pattern.
-func isTelegramEndTagMatched(telegramEndTag string, data string) bool {
-	re, err := regexp.Compile(telegramEndTag)
-	if err != nil {
-		sugar.Fatalf("Error compiling telegram end tag pattern: %v", err)
-	}
-
-	return re.MatchString(data)
 }

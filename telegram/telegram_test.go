@@ -5,7 +5,6 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"go.uber.org/zap"
 	"gzzn.com/airport/serial/config"
 	"gzzn.com/airport/serial/logger"
 )
@@ -17,14 +16,12 @@ func TestTelegram(t *testing.T) {
 
 var _ = Describe("Telegram", func() {
 	Context("Telegram test mode", func() {
-		var sugar *zap.SugaredLogger
 
 		BeforeEach(func() {
 			logger.Init()
+			Init()
 			err := config.InitParameter()
 			Expect(err).NotTo(HaveOccurred(), "Failed to initialize config parameter")
-			sugar = logger.SugaredLogger()
-			SetSugaredLogger(sugar)
 		})
 
 		Context("A complete telegram string", func() {
