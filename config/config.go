@@ -14,16 +14,13 @@ const (
 	TelegramModeEnvVar = "TELE_MODE"
 )
 
-var (
-	parameter *Parameter
-)
+var parameter *Parameter
 
 // Parameter holds the configuration for the application.
 type Parameter struct {
 	Serial   SerialConfig
 	NATS     NATSConfig
 	Telegram TelegramConfig
-	// Logger   LoggerConfig
 }
 
 // SerialConfig holds the serial port configuration.
@@ -54,67 +51,55 @@ type TelegramConfig struct {
 	SeqTag string `toml:"seq_tag"`
 }
 
-// LoggerConfig holds the logger configuration.
-type LoggerConfig struct {
-	Level      string `toml:"level"`
-	Filename   string `toml:"filename"`
-	MaxSize    int    `toml:"max_size"`
-	MaxBackups int    `toml:"max_backups"`
-	MaxAge     int    `toml:"max_age"`
-	Compress   bool   `toml:"compress"`
-}
-
 // InitParameter initializes the global parameter by loading the config based on the environment.
 func InitParameter() error {
-	env := getEnv(TelegramModeEnvVar, "test")
+	env := os.Getenv(TelegramModeEnvVar)
+	if env == "" {
+		env = "test"
+	}
 	param, err := loadConfig(env)
 	if err != nil {
 		return fmt.Errorf("failed to load config: %w", err)
 	}
-	parameter = &param
-	// fmt.Printf("Loaded config: %+v\n", param)
+	parameter = param
 	return nil
 }
 
 // GetParameter returns the initialized global parameter.
-func GetParameter() *Parameter {
+func GetParameter() (*Parameter, error) {
 	if parameter == nil {
-		if err := InitParameter(); err != nil {
-			panic(fmt.Sprintf("Failed to initialize parameters: %v", err))
+		err := InitParameter()
+		if err != nil {
+			return nil, fmt.Errorf("failed to initialize parameters: %w", err)
 		}
 	}
-	return parameter
+	return parameter, nil
 }
 
 // LoadConfigFromEnv loads the configuration parameters based on the TELE_MODE environment variable.
-func LoadConfigFromEnv() (Parameter, error) {
-	env := getEnv(TelegramModeEnvVar, "test")
+func LoadConfigFromEnv() (*Parameter, error) {
+	env := os.Getenv(TelegramModeEnvVar)
+	if env == "" {
+		env = "test"
+	}
 	return loadConfig(env)
 }
 
-// getEnv retrieves the value of an environment variable or returns a default value if it's not set.
-func getEnv(key string, defaultValue string) string {
-	if value, exists := os.LookupEnv(key); exists {
-		return value
-	}
-	return defaultValue
-}
-
 // loadConfig loads the configuration parameters based on the specified environment.
-func loadConfig(env string) (Parameter, error) {
+func loadConfig(env string) (*Parameter, error) {
 	configFile := getConfigFileForEnv(env)
 
 	file, err := os.Open(configFile)
 	if err != nil {
-		return Parameter{}, err
+		return nil, err
 	}
 	defer file.Close()
 
 	var config Parameter
 	if _, err := toml.NewDecoder(file).Decode(&config); err != nil {
-		return Parameter{}, err
+		return nil, err
 	}
-	return config, nil
+	return &config, nil
 }
 
 // getConfigFileForEnv returns the appropriate configuration file for the given environment.
@@ -123,7 +108,6 @@ func getConfigFileForEnv(env string) string {
 	case "prod":
 		return ProdConfigFile
 	case "test":
-		// fmt.Println("Loading test environment config")
 		return TestConfigFile
 	default:
 		return ProdConfigFile
