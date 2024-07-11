@@ -18,11 +18,15 @@ var (
 	publisher  *nats.StreamingPublisher
 )
 
+// Init initializes the NATS publisher.
 func Init() {
-	if err := config.InitParameter(); err != nil {
+	var natsConfig config.NATSConfig
+	if param, err := config.GetParameter(); err != nil {
 		panic(err)
+	} else {
+		natsConfig = param.NATS
 	}
-	natsConfig = config.GetParameter().NATS
+
 	publisherConfig := nats.StreamingPublisherConfig{
 		ClusterID: natsConfig.ClusterId,
 		ClientID:  natsConfig.ClientId,
