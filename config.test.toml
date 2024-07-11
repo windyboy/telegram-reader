@@ -9,7 +9,7 @@ flow_control = "none"
 buffer_size = 1024
 
 [nats]
-url = "nats://localhost:4222"
+urls = "nats://localhost:4222"
 username = "client_user"
 password = "client_password"
 subject = "telegram"

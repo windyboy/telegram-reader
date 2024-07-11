@@ -1,57 +1,65 @@
 package queue
 
 import (
-	"crypto/rand"
-	"time"
+	"fmt"
+	"sync"
 
-	"github.com/ThreeDotsLabs/watermill"
-	"github.com/ThreeDotsLabs/watermill-nats/pkg/nats"
-	"github.com/ThreeDotsLabs/watermill/message"
-	"github.com/nats-io/stan.go"
-	"github.com/oklog/ulid"
+	"github.com/nats-io/nats.go"
+	"go.uber.org/zap"
 	"gzzn.com/airport/serial/config"
 	"gzzn.com/airport/serial/logger"
 )
 
 var (
+	nc         *nats.Conn
+	initOnce   sync.Once
+	mu         sync.Mutex
 	natsConfig config.NATSConfig
-	publisher  *nats.StreamingPublisher
+	sugar      *zap.SugaredLogger
 )
 
-// Init initializes the NATS publisher.
-func Init() {
-	var natsConfig config.NATSConfig
-	if param, err := config.GetParameter(); err != nil {
-		panic(err)
-	} else {
-		natsConfig = param.NATS
-	}
-
-	publisherConfig := nats.StreamingPublisherConfig{
-		ClusterID: natsConfig.ClusterId,
-		ClientID:  natsConfig.ClientId,
-		StanOptions: []stan.Option{
-			stan.NatsURL(natsConfig.URL),
-		},
-		Marshaler: nats.GobMarshaler{},
-	}
+// InitNATS initializes the NATS connection with the provided URL.
+func Init() error {
 	var err error
-	publisher, err = nats.NewStreamingPublisher(publisherConfig, watermill.NewStdLogger(false, false))
-	if err != nil {
-		panic(err)
-	}
-
+	initOnce.Do(func() {
+		if param, err := config.GetParameter(); err != nil {
+			panic(err)
+		} else {
+			natsConfig = param.NATS
+		}
+		opts := []nats.Option{nats.Name("Serial Telegram Publisher")}
+		opts = append(opts, nats.UserInfo(natsConfig.Username, natsConfig.Password))
+		urls := natsConfig.URLS
+		sugar = logger.SugaredLogger()
+		nc, err = nats.Connect(urls, opts...)
+		if err != nil {
+			sugar.Errorf("Error connecting to NATS: %v", err)
+		} else {
+			sugar.Infof("Connected to NATS: %s", urls)
+		}
+	})
+	return err
 }
 
 // Publish sends a message to the specified subject.
-func Publish(payload []byte) error {
-	sugar := logger.SugaredLogger()
-	uuid := ulid.MustNew(ulid.Timestamp(time.Now()), rand.Reader)
-	msg := message.NewMessage(uuid.String(), payload)
-	if err := publisher.Publish(natsConfig.Subject, msg); err != nil {
-		sugar.Errorf("Error publishing message: %v", err)
+func Publish(msg []byte) error {
+	mu.Lock()
+	defer mu.Unlock()
+
+	if nc == nil {
+		err := fmt.Errorf("NATS connection is not initialized")
+		sugar.Errorf(err.Error())
 		return err
 	}
-	sugar.Debugf("Published message: %s", uuid.String())
-	return nil
+	subject := natsConfig.Subject
+	sugar.Debugf("Publishing message to subject: %s", subject)
+	return nc.Publish(subject, []byte(msg))
+}
+
+// Close terminates the NATS connection if it is initialized.
+func Close() {
+	if nc != nil {
+		nc.Close()
+		sugar.Info("NATS connection closed")
+	}
 }

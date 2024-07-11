@@ -7,10 +7,13 @@ import (
 	"gzzn.com/airport/serial/logger"
 )
 
+// ReadFromPort reads data from a serial port and sends it over a channel.
+// It takes the serial mode, port name, buffer size, and a data channel as input.
+// It returns an error if there's any issue with opening the port or reading from it.
 func ReadFromPort(mode *serial.Mode, portName string, bufferSize int, dataChannel chan<- []byte) error {
-	sugar := logger.SugaredLogger()
+	logger := logger.SugaredLogger()
 
-	sugar.Infof("Opening port: %s with mode: %+v", portName, mode)
+	logger.Infof("Opening port: %s with mode: %+v", portName, mode)
 
 	port, err := serial.Open(portName, mode)
 	if err != nil {
@@ -18,17 +21,19 @@ func ReadFromPort(mode *serial.Mode, portName string, bufferSize int, dataChanne
 	}
 	defer port.Close()
 
-	buf := make([]byte, bufferSize)
+	buffer := make([]byte, bufferSize)
 	for {
-		num, err := port.Read(buf)
+		numBytesRead, err := port.Read(buffer)
 		if err != nil {
 			return fmt.Errorf("error reading from port: %w", err)
 		}
-		readData := buf[:num]
-		// sugar.Debugf("Read %d bytes: %s", num, string(readData))
+		readData := buffer[:numBytesRead]
+
+		// Uncomment the following line if you want to log the read data
+		// logger.Debugf("Read %d bytes: %s", numBytesRead, string(readData))
 
 		// Log the data being sent over the channel
-		// sugar.Debug("Sending data over channel:", string(readData))
+		// logger.Debug("Sending data over channel:", string(readData))
 		dataChannel <- readData
 	}
 }

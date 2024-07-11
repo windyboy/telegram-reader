@@ -37,7 +37,7 @@ type SerialConfig struct {
 
 // NATSConfig holds the NATS server configuration.
 type NATSConfig struct {
-	URL       string `toml:"url"`
+	URLS      string `toml:"urls"`
 	Username  string `toml:"username"`
 	Password  string `toml:"password"`
 	Subject   string `toml:"subject"`

@@ -94,10 +94,6 @@ func executeReadCommand() error {
 	mode, portName := config.ReadSerialConfig(parameter.Serial)
 	sugar.Infof("Opening port: %s with mode: %+v", portName, mode)
 
-	// if err := nats.InitNATS(parameter.NATS.URL); err != nil {
-	// 	sugar.Fatalf("Error connecting to NATS server: %v", err)
-	// }
-
 	dataChannel := make(chan []byte)
 
 	go func() {
@@ -133,10 +129,6 @@ func processReceivedData(data []byte) {
 		if sequence := telegram.GetTelegramSequence(telegramData, parameter.Telegram.SeqTag); sequence != "" {
 			sugar.Infof("Publishing telegram: %s", sequence)
 		}
-
-		// if err := nats.Publish(parameter.NATS.Subject, string(data)); err != nil {
-		// 	sugar.Errorf("Error publishing to NATS: %v", err)
-		// }
 		if err := queue.Publish(data); err != nil {
 			sugar.Errorf("Error publishing to NATS: %v", err)
 		}
