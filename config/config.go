@@ -53,14 +53,20 @@ type TelegramConfig struct {
 
 // InitParameter initializes the global parameter by loading the config based on the environment.
 func InitParameter() error {
+	if parameter != nil {
+		return nil
+	}
+
 	env := os.Getenv(TelegramModeEnvVar)
 	if env == "" {
 		env = "test"
 	}
+
 	param, err := loadConfig(env)
 	if err != nil {
 		return fmt.Errorf("failed to load config: %w", err)
 	}
+
 	parameter = param
 	return nil
 }
