@@ -12,7 +12,7 @@ buffer_size = 1024
 urls = "nats://localhost:4222"
 username = "client_user"
 password = "client_password"
-subject = "telegram"
+subject = "Telegram.Serial"
 cluster_id = "test-cluster"
 client_id = "serial-client"
 

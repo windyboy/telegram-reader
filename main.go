@@ -6,17 +6,16 @@ import (
 
 	"github.com/urfave/cli/v2"
 	"go.bug.st/serial"
-	"go.uber.org/zap"
 	"gzzn.com/airport/serial/config"
 	"gzzn.com/airport/serial/logger"
-	"gzzn.com/airport/serial/queue"
+	nats "gzzn.com/airport/serial/queue"
 	internalSerial "gzzn.com/airport/serial/serial"
 	"gzzn.com/airport/serial/telegram"
 )
 
 var (
 	parameter *config.Parameter
-	sugar     *zap.SugaredLogger
+	// sugar     *zap.SugaredLogger
 )
 
 // listAvailablePorts returns a list of available serial ports
@@ -38,8 +37,7 @@ func setupApp() *cli.App {
 		Usage: "A serial port reading CLI application",
 		Before: func(c *cli.Context) error {
 			parameter = config.GetParameter()
-			logger.Init()
-			sugar = logger.SugaredLogger()
+			// sugar = logger.SugaredLogger()
 			return nil
 		},
 		Commands: []*cli.Command{
@@ -89,10 +87,17 @@ func setupApp() *cli.App {
 
 // executeReadCommand handles the logic for the "read" command
 func executeReadCommand() error {
+	sugar := logger.GetLogger()
+	telegram.Init()
+	// nats.InitNATS()
+	// defer nats.Close()
 	mode, portName := config.ReadSerialConfig(parameter.Serial)
-	sugar.Infof("Opening port: %s with mode: %+v", portName, mode)
+	// sugar.Infof("Opening port: %s with mode: %+v", portName, mode)
 
 	dataChannel := make(chan []byte)
+	if err := nats.Connect(parameter.NATS); err != nil {
+		sugar.Fatalf("Error connecting to NATS: %v", err)
+	}
 
 	go func() {
 		if err := internalSerial.ReadFromPort(mode, portName, parameter.Serial.BufferSize, dataChannel); err != nil {
@@ -108,6 +113,7 @@ func executeReadCommand() error {
 
 // executeListCommand handles the logic for the "list" command
 func executeListCommand() error {
+	sugar := logger.GetLogger()
 	sugar.Infof("Listing available serial ports")
 	ports, err := listAvailablePorts()
 	if err != nil {
@@ -121,13 +127,14 @@ func executeListCommand() error {
 
 // processReceivedData processes received data from the serial port and publishes to NATS
 func processReceivedData(data []byte) {
+	sugar := logger.GetLogger()
 	if telegrams := telegram.Append(string(data)); len(telegrams) > 0 {
-		sugar.Debugf("Got %d telegrams to publish", len(telegrams))
+		// sugar.Debugf("Got %d telegrams to publish", len(telegrams))
 		for _, telegramData := range telegrams {
 			if sequence := telegram.GetTelegramSequence(telegramData); sequence != "" {
 				sugar.Infof("Publishing telegram: %s", sequence)
 			}
-			if err := queue.Publish(data); err != nil {
+			if err := nats.Publish(telegramData); err != nil {
 				sugar.Errorf("Error publishing to NATS: %v", err)
 			}
 		}
@@ -135,15 +142,9 @@ func processReceivedData(data []byte) {
 }
 
 func main() {
-	config.Init()
-	logger.Init()
-	sugar = logger.SugaredLogger()
-	telegram.Init()
-	queue.Init()
 	app := setupApp()
-	defer queue.Close()
-
 	if err := app.Run(os.Args); err != nil {
-		sugar.Fatal(err)
+		panic(err)
 	}
+	nats.Close()
 }

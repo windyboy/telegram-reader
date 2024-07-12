@@ -11,7 +11,7 @@ import (
 // It takes the serial mode, port name, buffer size, and a data channel as input.
 // It returns an error if there's any issue with opening the port or reading from it.
 func ReadFromPort(mode *serial.Mode, portName string, bufferSize int, dataChannel chan<- []byte) error {
-	logger := logger.SugaredLogger()
+	logger := logger.GetLogger()
 
 	logger.Infof("Opening port: %s with mode: %+v", portName, mode)
 

@@ -7,7 +7,6 @@ import (
 	. "github.com/onsi/gomega"
 
 	"gzzn.com/airport/serial/config"
-	"gzzn.com/airport/serial/logger"
 )
 
 // TestTelegram runs the test suite for the Telegram package.
@@ -21,7 +20,6 @@ var _ = Describe("Telegram Processing", func() {
 	// Setup common to all tests in this suite.
 	BeforeEach(func() {
 		telegramConfig = config.GetParameter().Telegram
-		logger.Init()
 		Init()
 	})
 

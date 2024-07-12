@@ -5,7 +5,6 @@ import (
 	"regexp"
 	"sync"
 
-	"go.uber.org/zap"
 	"gzzn.com/airport/serial/config"
 	"gzzn.com/airport/serial/logger"
 )
@@ -15,19 +14,17 @@ const SequenceUnknow = "TMQ----"
 var (
 	buffer          bytes.Buffer // Buffer to store incoming data
 	mu              sync.Mutex   // Mutex to protect buffer access
-	sugar           *zap.SugaredLogger
 	telegramConfig  config.TelegramConfig
 	patternEndTag   *regexp.Regexp
 	patternSeqTag   *regexp.Regexp
 	patternTelegram *regexp.Regexp
-	initialized     = false
 )
 
 // Init initializes the telegram package.
 // It retrieves the telegram configuration from the parameter and sets up the end tag pattern.
 // It also initializes the logger.
 func Init() {
-	if initialized {
+	if patternEndTag != nil {
 		return
 	}
 	// Retrieve the telegram configuration from the parameter
@@ -42,11 +39,6 @@ func Init() {
 	// Set up the telegram pattern using the configuration
 	patternTelegram = regexp.MustCompile(telegramConfig.PatternSplit)
 
-	// Initialize the logger
-	logger.Init()
-	sugar = logger.SugaredLogger()
-
-	initialized = true
 }
 
 // Append appends the given data to the buffer and processes it to extract telegrams.
@@ -60,11 +52,11 @@ func Append(data string) []string {
 	buffer.WriteString(data)
 	currentBuffer := buffer.String()
 
-	sugar.Debugf("Buffer: %s", currentBuffer)
+	// sugar.Debugf("Buffer: %s", currentBuffer)
 
 	if telegrams := processData(currentBuffer); len(telegrams) > 0 {
 		buffer.Reset() // Reset the buffer if a match is found
-		sugar.Debugf("Got %d telegrams", len(telegrams))
+		logger.GetLogger().Debugf("Got %d telegrams", len(telegrams))
 		return telegrams
 	}
 
@@ -76,7 +68,7 @@ func Append(data string) []string {
 func GetTelegramSequence(telegram string) string {
 
 	if match := patternSeqTag.FindStringSubmatch(telegram); len(match) > 1 {
-		sugar.Debugf("Matched telegram sequence: %s", match[1])
+		logger.GetLogger().Debugf("Matched telegram sequence: %s", match[1])
 		return match[1]
 	}
 

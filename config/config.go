@@ -10,12 +10,13 @@ import (
 
 const (
 	ProdConfigFile     = "./config.toml"
-	TestConfigFile     = "../config.test.toml"
+	TestConfigFile     = "./config.test.toml"
 	TelegramModeEnvVar = "TELE_MODE"
 )
 
 var parameter *Parameter
-var initialized = false
+
+// var initialized = false
 
 // Parameter holds the configuration for the application.
 type Parameter struct {
@@ -53,49 +54,34 @@ type TelegramConfig struct {
 	PatternSplit string `toml:"pattern_split"`
 }
 
-// This function is idempotent, meaning it can be called multiple times without reinitializing the configuration.
-// Init initializes the configuration for the application.
-// It loads the configuration based on the environment variable TelegramModeEnvVar.
-// If the environment variable is not set, it defaults to "test".
-// The loaded configuration is stored in the parameter variable.
-// This function is idempotent, meaning it can be called multiple times without reinitializing the configuration.
-func Init() {
-	// Check if already initialized
-	if initialized {
-		return
-	}
+func load() {
 
 	// Get the environment variable
 	env := os.Getenv(TelegramModeEnvVar)
 	if env == "" {
 		env = "test"
 	}
-	fmt.Printf("Environment : %s\n", env)
+	// fmt.Printf("Environment : %s\n", env)
 	// Load the configuration based on the environment
-	param, err := loadConfig(env)
-	if err != nil {
-		// Handle error if failed to load config
-		_ = fmt.Errorf("failed to load config: %w", err)
-	} else {
+	param := loadConfig(env)
 
-		fmt.Printf("Config : %+v\n", param)
+	// fmt.Printf("Config : %+v\n", param)
 
-		// Set the global parameter
-		parameter = param
+	// Set the global parameter
+	parameter = param
 
-		// Mark as initialized
-		initialized = true
-	}
 }
 
 // GetParameter returns the initialized global parameter.
 func GetParameter() *Parameter {
-	Init()
+	if parameter == nil {
+		load()
+	}
 	return parameter
 }
 
 // LoadConfigFromEnv loads the configuration parameters based on the TELE_MODE environment variable.
-func LoadConfigFromEnv() (*Parameter, error) {
+func LoadConfigFromEnv() *Parameter {
 	env := os.Getenv(TelegramModeEnvVar)
 	if env == "" {
 		env = "test"
@@ -104,20 +90,20 @@ func LoadConfigFromEnv() (*Parameter, error) {
 }
 
 // loadConfig loads the configuration parameters based on the specified environment.
-func loadConfig(env string) (*Parameter, error) {
+func loadConfig(env string) *Parameter {
 	configFile := getConfigFileForEnv(env)
 	fmt.Printf("Config File : %s\n", configFile)
 	file, err := os.Open(configFile)
 	if err != nil {
-		return nil, err
+		panic(err)
 	}
 	defer file.Close()
 
 	var config Parameter
 	if _, err := toml.NewDecoder(file).Decode(&config); err != nil {
-		return nil, err
+		panic(err)
 	}
-	return &config, nil
+	return &config
 }
 
 // getConfigFileForEnv returns the appropriate configuration file for the given environment.
