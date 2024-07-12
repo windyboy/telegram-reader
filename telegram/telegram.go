@@ -40,20 +40,16 @@ func Init() {
 
 }
 
-// Append appends the given data to the buffer and processes it to extract telegrams.
-// It locks the buffer to ensure thread safety and releases the lock when done.
-// If a complete telegram is found in the buffer, it resets the buffer and returns the extracted telegrams.
-// Otherwise, it returns nil.
 func Append(b byte) []string {
 	mu.Lock()
 	defer mu.Unlock()
 
 	buffer.WriteByte(b)
-	currentBuffer := buffer.String()
+	// currentBuffer := buffer.String()
 
 	// sugar.Debugf("Buffer: %s", currentBuffer)
 
-	if telegrams := processData(currentBuffer); len(telegrams) > 0 {
+	if telegrams := getTelegrams(buffer.String()); len(telegrams) > 0 {
 		buffer.Reset() // Reset the buffer if a match is found
 		// logger.GetLogger().Debugf("Got %d telegrams", len(telegrams))
 		return telegrams
@@ -64,7 +60,7 @@ func Append(b byte) []string {
 
 // GetTelegramSequence extracts and returns the telegram sequence from the given telegram
 // using the provided sequence pattern. If no sequence is found, it returns an empty string.
-func GetTelegramSequence(telegram string) string {
+func GetSequence(telegram string) string {
 
 	if match := patternSeqTag.FindStringSubmatch(telegram); len(match) > 1 {
 		// logger.GetLogger().Debugf("Matched telegram sequence: %s", match[1])
@@ -74,18 +70,12 @@ func GetTelegramSequence(telegram string) string {
 	return SequenceUnknow
 }
 
-// GetTelegramFromText extracts and returns all telegrams from the given text
-// using the provided telegram pattern.
-func GetTelegramFromText(text string) []string {
-	return patternTelegram.FindAllString(text, -1)
-}
-
 // processData checks if the given data matches the provided telegram end tag.
 // If a match is found, it returns the data, otherwise returns an empty string.
-func processData(data string) []string {
+func getTelegrams(data string) []string {
 	if patternEndTag.MatchString(data) {
 		// Split the data based on the end tag pattern
-		telegrams := GetTelegramFromText(data)
+		telegrams := patternTelegram.FindAllString(data, -1)
 		return telegrams
 	}
 	return nil

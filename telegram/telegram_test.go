@@ -34,7 +34,7 @@ NNNN`
 		It("Extracts the correct sequence from the telegram", func() {
 			// Define the pattern to extract the sequence.
 			// Extract the sequence.
-			sequence := GetTelegramSequence(telegramText)
+			sequence := GetSequence(telegramText)
 			// Verify the extracted sequence is as expected.
 			Expect(sequence).To(Equal("TMQ2627"), "The extracted sequence should match the expected value.")
 		})
@@ -69,7 +69,7 @@ NNNN`
 			// Define the pattern to split the telegrams.
 			// var splitPattern = "(?s)ZCZC.*?NNNN"
 			// Split the string into telegrams.
-			telegrams := GetTelegramFromText(telegramsText)
+			telegrams := getTelegrams(telegramsText)
 			// Verify the number of telegrams and their content.
 			Expect(telegrams).To(HaveLen(2), "There should be exactly two telegrams.")
 			Expect(telegrams[0]).To(Equal(expectedFirstTelegram), "The first telegram should match the expected content.")
