@@ -17,14 +17,12 @@ func TestTelegram(t *testing.T) {
 }
 
 var _ = Describe("Telegram Processing", func() {
+	// var telegramConfig config.TelegramConfig
 	// Setup common to all tests in this suite.
 	BeforeEach(func() {
+		telegramConfig = config.GetParameter().Telegram
 		logger.Init()
 		Init()
-		err := config.InitParameter()
-		Expect(err).NotTo(HaveOccurred(), "Config parameters should initialize without error.")
-		parameters, _ := config.GetParameter()
-		telegramConfig = parameters.Telegram
 	})
 
 	Context("When processing a complete telegram string", func() {
@@ -37,9 +35,8 @@ NNNN`
 
 		It("Extracts the correct sequence from the telegram", func() {
 			// Define the pattern to extract the sequence.
-			var sequencePattern = telegramConfig.SeqTag
 			// Extract the sequence.
-			sequence := GetTelegramSequence(telegramText, sequencePattern)
+			sequence := GetTelegramSequence(telegramText)
 			// Verify the extracted sequence is as expected.
 			Expect(sequence).To(Equal("TMQ2627"), "The extracted sequence should match the expected value.")
 		})
@@ -72,9 +69,9 @@ NNNN`
 
 		It("Correctly splits the string into individual telegrams", func() {
 			// Define the pattern to split the telegrams.
-			var splitPattern = "(?s)ZCZC.*?NNNN"
+			// var splitPattern = "(?s)ZCZC.*?NNNN"
 			// Split the string into telegrams.
-			telegrams := GetTelegramFromText(telegramsText, splitPattern)
+			telegrams := GetTelegramFromText(telegramsText)
 			// Verify the number of telegrams and their content.
 			Expect(telegrams).To(HaveLen(2), "There should be exactly two telegrams.")
 			Expect(telegrams[0]).To(Equal(expectedFirstTelegram), "The first telegram should match the expected content.")

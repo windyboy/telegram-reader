@@ -11,34 +11,31 @@ import (
 )
 
 var (
-	nc         *nats.Conn
-	initOnce   sync.Once
-	mu         sync.Mutex
-	natsConfig config.NATSConfig
-	sugar      *zap.SugaredLogger
+	nc          *nats.Conn
+	mu          sync.Mutex
+	natsConfig  config.NATSConfig
+	sugar       *zap.SugaredLogger
+	initialized = false
 )
 
 // InitNATS initializes the NATS connection with the provided URL.
-func Init() error {
+func Init() {
+	if initialized {
+		return
+	}
+	natsConfig = config.GetParameter().NATS
+	opts := []nats.Option{nats.Name("Serial Telegram Publisher")}
+	opts = append(opts, nats.UserInfo(natsConfig.Username, natsConfig.Password))
+	urls := natsConfig.URLS
+	sugar = logger.SugaredLogger()
 	var err error
-	initOnce.Do(func() {
-		if param, err := config.GetParameter(); err != nil {
-			panic(err)
-		} else {
-			natsConfig = param.NATS
-		}
-		opts := []nats.Option{nats.Name("Serial Telegram Publisher")}
-		opts = append(opts, nats.UserInfo(natsConfig.Username, natsConfig.Password))
-		urls := natsConfig.URLS
-		sugar = logger.SugaredLogger()
-		nc, err = nats.Connect(urls, opts...)
-		if err != nil {
-			sugar.Errorf("Error connecting to NATS: %v", err)
-		} else {
-			sugar.Infof("Connected to NATS: %s", urls)
-		}
-	})
-	return err
+	nc, err = nats.Connect(urls, opts...)
+	if err != nil {
+		sugar.Errorf("Error connecting to NATS: %v", err)
+	} else {
+		sugar.Infof("Connected to NATS: %s", urls)
+		initialized = true
+	}
 }
 
 // Publish sends a message to the specified subject.

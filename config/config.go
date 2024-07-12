@@ -15,6 +15,7 @@ const (
 )
 
 var parameter *Parameter
+var initialized = false
 
 // Parameter holds the configuration for the application.
 type Parameter struct {
@@ -49,38 +50,48 @@ type NATSConfig struct {
 type TelegramConfig struct {
 	EndTag       string `toml:"end_tag"`
 	SeqTag       string `toml:"seq_tag"`
-	SplitPattern string `toml: "split_pattern"`
+	PatternSplit string `toml:"pattern_split"`
 }
 
-// InitParameter initializes the global parameter by loading the config based on the environment.
-func InitParameter() error {
-	if parameter != nil {
-		return nil
+// This function is idempotent, meaning it can be called multiple times without reinitializing the configuration.
+// Init initializes the configuration for the application.
+// It loads the configuration based on the environment variable TelegramModeEnvVar.
+// If the environment variable is not set, it defaults to "test".
+// The loaded configuration is stored in the parameter variable.
+// This function is idempotent, meaning it can be called multiple times without reinitializing the configuration.
+func Init() {
+	// Check if already initialized
+	if initialized {
+		return
 	}
 
+	// Get the environment variable
 	env := os.Getenv(TelegramModeEnvVar)
 	if env == "" {
 		env = "test"
 	}
-
+	fmt.Printf("Environment : %s\n", env)
+	// Load the configuration based on the environment
 	param, err := loadConfig(env)
 	if err != nil {
-		return fmt.Errorf("failed to load config: %w", err)
-	}
+		// Handle error if failed to load config
+		_ = fmt.Errorf("failed to load config: %w", err)
+	} else {
 
-	parameter = param
-	return nil
+		fmt.Printf("Config : %+v\n", param)
+
+		// Set the global parameter
+		parameter = param
+
+		// Mark as initialized
+		initialized = true
+	}
 }
 
 // GetParameter returns the initialized global parameter.
-func GetParameter() (*Parameter, error) {
-	if parameter == nil {
-		err := InitParameter()
-		if err != nil {
-			return nil, fmt.Errorf("failed to initialize parameters: %w", err)
-		}
-	}
-	return parameter, nil
+func GetParameter() *Parameter {
+	Init()
+	return parameter
 }
 
 // LoadConfigFromEnv loads the configuration parameters based on the TELE_MODE environment variable.
@@ -95,7 +106,7 @@ func LoadConfigFromEnv() (*Parameter, error) {
 // loadConfig loads the configuration parameters based on the specified environment.
 func loadConfig(env string) (*Parameter, error) {
 	configFile := getConfigFileForEnv(env)
-
+	fmt.Printf("Config File : %s\n", configFile)
 	file, err := os.Open(configFile)
 	if err != nil {
 		return nil, err

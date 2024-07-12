@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sync"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -35,28 +34,27 @@ type LumberjackConfig struct {
 }
 
 var (
-	sugar    *zap.SugaredLogger
-	initOnce sync.Once
+	sugar       *zap.SugaredLogger
+	initialized = false
 )
-
-// InitLogger initializes the logger configuration.
-func InitLogger(loggerConfig LoggerConfig) {
-	Init()
-}
 
 // Init initializes the logger. It ensures that the logger is initialized only once.
 func Init() {
-	initOnce.Do(func() {
-		env := getEnv()
-		configFile, err := getConfigFile(env)
-		if err != nil {
-			fmt.Printf("Error finding config file: %v\n", err)
-			return
-		}
-		if err := InitLoggerFromFile(configFile, env); err != nil {
-			fmt.Printf("Error initializing logger: %v\n", err)
-		}
-	})
+	if initialized {
+		return
+	}
+
+	env := getEnv()
+	configFile, err := getConfigFile(env)
+	if err != nil {
+		fmt.Printf("Error finding config file: %v\n", err)
+		return
+	}
+	if err := InitLoggerFromFile(configFile, env); err != nil {
+		fmt.Printf("Error initializing logger: %v\n", err)
+	}
+
+	initialized = true
 }
 
 // getEnv retrieves the logging environment from the TELE_MODE environment variable.

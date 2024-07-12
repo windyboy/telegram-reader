@@ -15,7 +15,7 @@ import (
 )
 
 var (
-	parameter config.Parameter
+	parameter *config.Parameter
 	sugar     *zap.SugaredLogger
 )
 
@@ -37,9 +37,7 @@ func setupApp() *cli.App {
 		Name:  "serial-read",
 		Usage: "A serial port reading CLI application",
 		Before: func(c *cli.Context) error {
-			if err := config.InitParameter(); err != nil {
-				return err
-			}
+			parameter = config.GetParameter()
 			logger.Init()
 			sugar = logger.SugaredLogger()
 			return nil
@@ -123,27 +121,27 @@ func executeListCommand() error {
 
 // processReceivedData processes received data from the serial port and publishes to NATS
 func processReceivedData(data []byte) {
-	if telegramData := telegram.Append(string(data)); telegramData != "" {
-		sugar.Debugf("Publishing data to NATS: %s", telegramData)
-
-		if sequence := telegram.GetTelegramSequence(telegramData, parameter.Telegram.SeqTag); sequence != "" {
-			sugar.Infof("Publishing telegram: %s", sequence)
-		}
-		if err := queue.Publish(data); err != nil {
-			sugar.Errorf("Error publishing to NATS: %v", err)
+	if telegrams := telegram.Append(string(data)); len(telegrams) > 0 {
+		sugar.Debugf("Got %d telegrams to publish", len(telegrams))
+		for _, telegramData := range telegrams {
+			if sequence := telegram.GetTelegramSequence(telegramData); sequence != "" {
+				sugar.Infof("Publishing telegram: %s", sequence)
+			}
+			if err := queue.Publish(data); err != nil {
+				sugar.Errorf("Error publishing to NATS: %v", err)
+			}
 		}
 	}
 }
 
 func main() {
+	config.Init()
 	logger.Init()
 	sugar = logger.SugaredLogger()
+	telegram.Init()
 	queue.Init()
 	app := setupApp()
-	if err := config.InitParameter(); err != nil {
-		sugar.DPanicf("Failed to initialize config parameter: %v", err)
-	}
-	telegram.Init()
+	defer queue.Close()
 
 	if err := app.Run(os.Args); err != nil {
 		sugar.Fatal(err)
