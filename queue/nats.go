@@ -10,30 +10,8 @@ import (
 
 var (
 	nc *nats.Conn
-	// initOnce   sync.Once
 	mu sync.Mutex
-	// natsConfig config.NATSConfig
 )
-
-// InitNATS initializes the NATS connection with the provided URL.
-// func InitNATS() {
-
-// 	initOnce.Do(func() {
-// 		sugar := logger.GetLogger()
-// 		natsConfig = config.GetParameter().NATS
-// 		logger.GetLogger().Infof("Connecting to NATS: %+v", natsConfig)
-// 		opts := []nats.Option{nats.Name("Serial Telegram Publisher")}
-// 		opts = append(opts, nats.UserInfo(natsConfig.Username, natsConfig.Password))
-// 		url := natsConfig.URLS
-// 		var err error
-// 		if nc, err = nats.Connect(url, opts...); err != nil {
-// 			sugar.Errorf("Error connecting to NATS: %v", err)
-// 		} else {
-// 			defer Close()
-// 			sugar.Infof("Connected to NATS: %s", url)
-// 		}
-// 	})
-// }
 
 func Connect(config config.NATSConfig) error {
 	sugar := logger.GetLogger()
@@ -46,12 +24,10 @@ func Connect(config config.NATSConfig) error {
 		sugar.Errorf("Error connecting to NATS: %v", err)
 		return err
 	}
-	// defer Close()
 	sugar.Infof("Connected to NATS: %s", url)
 	return nil
 }
 
-// Publish sends a message to the specified subject.
 func Publish(msg string) error {
 	sugar := logger.GetLogger()
 	mu.Lock()
@@ -61,11 +37,9 @@ func Publish(msg string) error {
 		sugar.Fatalf("NATS connection is not initialized")
 	}
 	subject := config.GetParameter().NATS.Subject
-	// sugar.Debugf("Publishing message to subject: %s", subject)
 	return nc.Publish(subject, []byte(msg))
 }
 
-// Close terminates the NATS connection if it is initialized.
 func Close() {
 	sugar := logger.GetLogger()
 	mu.Lock()
@@ -75,7 +49,5 @@ func Close() {
 		sugar.Infof("Closing NATS connection")
 		nc.Close()
 		nc = nil
-		// } else {
-		// sugar.Infof("NATS connection is already closed or was never initialized")
 	}
 }

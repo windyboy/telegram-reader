@@ -6,7 +6,6 @@ import (
 	"sync"
 
 	"gzzn.com/airport/serial/config"
-	"gzzn.com/airport/serial/logger"
 )
 
 const SequenceUnknow = "TMQ----"
@@ -56,7 +55,7 @@ func Append(b byte) []string {
 
 	if telegrams := processData(currentBuffer); len(telegrams) > 0 {
 		buffer.Reset() // Reset the buffer if a match is found
-		logger.GetLogger().Debugf("Got %d telegrams", len(telegrams))
+		// logger.GetLogger().Debugf("Got %d telegrams", len(telegrams))
 		return telegrams
 	}
 
@@ -68,7 +67,7 @@ func Append(b byte) []string {
 func GetTelegramSequence(telegram string) string {
 
 	if match := patternSeqTag.FindStringSubmatch(telegram); len(match) > 1 {
-		logger.GetLogger().Debugf("Matched telegram sequence: %s", match[1])
+		// logger.GetLogger().Debugf("Matched telegram sequence: %s", match[1])
 		return match[1]
 	}
 

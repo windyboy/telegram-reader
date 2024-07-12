@@ -101,6 +101,7 @@ func setupApp() *cli.App {
 
 // executeReadCommand handles the logic for the "read" command
 func executeReadCommand() error {
+	sugar := logger.GetLogger()
 	go func() {
 		addr := config.GetParameter().Prometheus.Address
 		log := logger.GetLogger()
@@ -108,19 +109,15 @@ func executeReadCommand() error {
 		http.Handle("/metrics", promhttp.Handler())
 		panic(http.ListenAndServe(addr, nil))
 	}()
-	sugar := logger.GetLogger()
-	telegram.Init()
-	// nats.InitNATS()
-	// defer nats.Close()
-	mode, portName := config.ReadSerialConfig(parameter.Serial)
-	// sugar.Infof("Opening port: %s with mode: %+v", portName, mode)
 
 	dataChannel := make(chan []byte)
-	if err := nats.Connect(parameter.NATS); err != nil {
-		sugar.Fatalf("Error connecting to NATS: %v", err)
-	}
-
 	go func() {
+		// sugar := logger.GetLogger()
+		telegram.Init()
+		mode, portName := config.ReadSerialConfig(parameter.Serial)
+		if err := nats.Connect(parameter.NATS); err != nil {
+			sugar.Fatalf("Error connecting to NATS: %v", err)
+		}
 		if err := internalSerial.ReadFromPort(mode, portName, parameter.Serial.BufferSize, dataChannel); err != nil {
 			sugar.Fatalf("Error reading from port: %v", err)
 		}
