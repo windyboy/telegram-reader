@@ -10,6 +10,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/urfave/cli/v2"
 	"go.bug.st/serial"
+	"go.uber.org/zap"
 	"gzzn.com/airport/serial/config"
 	"gzzn.com/airport/serial/logger"
 	nats "gzzn.com/airport/serial/queue"
@@ -20,42 +21,36 @@ import (
 var (
 	parameter *config.Parameter
 
-	totalByes = promauto.NewCounter(prometheus.CounterOpts{
+	totalBytes = promauto.NewCounter(prometheus.CounterOpts{
 		Namespace: "serial",
-		Name:      "serial_read_byes_total",
-		Help:      "The total number bytes read from the serial port",
+		Name:      "serial_read_bytes_total",
+		Help:      "The total number of bytes read from the serial port",
 	})
-	totalTelegram = promauto.NewCounter(prometheus.CounterOpts{
+	totalTelegrams = promauto.NewCounter(prometheus.CounterOpts{
 		Namespace: "serial",
 		Name:      "telegram_total",
 		Help:      "The total number of telegrams received",
 	})
 )
 
-// listAvailablePorts returns a list of available serial ports
-func listAvailablePorts() ([]string, error) {
-	enumerator, err := serial.GetPortsList()
-	if err != nil {
-		return nil, err
+func main() {
+	app := setupApp()
+	if err := app.Run(os.Args); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
 	}
-	if enumerator == nil {
-		return nil, fmt.Errorf("no serial ports enumerator available")
-	}
-	return enumerator, nil
+	nats.Close()
 }
 
-// setupApp initializes the CLI application and its commands
 func setupApp() *cli.App {
 	app := &cli.App{
 		Name:  "serial-read",
 		Usage: "A serial port reading CLI application",
 		Before: func(c *cli.Context) error {
 			parameter = config.GetParameter()
-			// sugar = logger.SugaredLogger()
 			return nil
 		},
 		Commands: []*cli.Command{
-			// Add "read" command configuration
 			{
 				Name:  "read",
 				Usage: "Read data from a serial port",
@@ -82,56 +77,33 @@ func setupApp() *cli.App {
 						EnvVars: []string{"NATS_SUBJECT"},
 					},
 				},
-				Action: func(c *cli.Context) error {
-					return executeReadCommand()
-				},
+				Action: executeReadCommand,
 			},
-			// Add "list" command configuration
 			{
-				Name:  "list",
-				Usage: "List available local serial ports",
-				Action: func(c *cli.Context) error {
-					return executeListCommand()
-				},
+				Name:   "list",
+				Usage:  "List available local serial ports",
+				Action: executeListCommand,
 			},
 		},
 	}
 	return app
 }
 
-// executeReadCommand handles the logic for the "read" command
-func executeReadCommand() error {
+func executeReadCommand(c *cli.Context) error {
 	sugar := logger.GetLogger()
-	go func() {
-		addr := config.GetParameter().Prometheus.Address
-		log := logger.GetLogger()
-		log.Infof("Starting metrics server on %s", addr)
-		http.Handle("/metrics", promhttp.Handler())
-		panic(http.ListenAndServe(addr, nil))
-	}()
+	go startMetricsServer(sugar)
 
 	dataChannel := make(chan []byte)
-	go func() {
-		// sugar := logger.GetLogger()
-		telegram.Init()
-		mode, portName := config.ReadSerialConfig(parameter.Serial)
-		if err := nats.Connect(parameter.NATS); err != nil {
-			sugar.Fatalf("Error connecting to NATS: %v", err)
-		}
-		if err := internalSerial.ReadFromPort(mode, portName, parameter.Serial.BufferSize, dataChannel); err != nil {
-			sugar.Fatalf("Error reading from port: %v", err)
-		}
-	}()
+	go readFromPort(dataChannel, sugar)
 
 	for data := range dataChannel {
-		totalByes.Add(float64(len(data)))
+		totalBytes.Add(float64(len(data)))
 		processReceivedData(data)
 	}
 	return nil
 }
 
-// executeListCommand handles the logic for the "list" command
-func executeListCommand() error {
+func executeListCommand(c *cli.Context) error {
 	sugar := logger.GetLogger()
 	sugar.Infof("Listing available serial ports")
 	ports, err := listAvailablePorts()
@@ -144,12 +116,30 @@ func executeListCommand() error {
 	return nil
 }
 
-// processReceivedData processes received data from the serial port and publishes to NATS
+func startMetricsServer(log *zap.SugaredLogger) {
+	addr := config.GetParameter().Prometheus.Address
+	// log := logger.GetLogger()
+	log.Infof("Starting metrics server on %s", addr)
+	http.Handle("/metrics", promhttp.Handler())
+	panic(http.ListenAndServe(addr, nil))
+}
+
+func readFromPort(dataChannel chan<- []byte, log *zap.SugaredLogger) {
+	// logger := logger.GetLogger()
+	telegram.Init()
+	mode, portName := config.ReadSerialConfig(parameter.Serial)
+	if err := nats.Connect(parameter.NATS); err != nil {
+		log.Fatalf("Error connecting to NATS: %v", err)
+	}
+	if err := internalSerial.ReadFromPort(mode, portName, parameter.Serial.BufferSize, dataChannel); err != nil {
+		log.Fatalf("Error reading from port: %v", err)
+	}
+}
+
 func processReceivedData(data []byte) {
 	sugar := logger.GetLogger()
 	for _, b := range data {
 		if telegrams := telegram.Append(b); len(telegrams) > 0 {
-			// sugar.Debugf("Got %d telegrams to publish", len(telegrams))
 			for _, telegramData := range telegrams {
 				if sequence := telegram.GetTelegramSequence(telegramData); sequence != "" {
 					sugar.Infof("Publishing telegram: %s", sequence)
@@ -158,18 +148,19 @@ func processReceivedData(data []byte) {
 					sugar.Errorf("Error publishing to NATS: %v", err)
 				}
 			}
-			totalTelegram.Add(float64(len(telegrams)))
+			totalTelegrams.Add(float64(len(telegrams)))
 		}
 	}
-	sugar.Infof("Total bytes: %d, Total telegrams: %d", totalByes, totalTelegram)
+	sugar.Infof("Total bytes: %d, Total telegrams: %d", totalBytes, totalTelegrams)
 }
 
-func main() {
-	app := setupApp()
-	// Expose metrics endpoint
-	if err := app.Run(os.Args); err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-		os.Exit(1)
+func listAvailablePorts() ([]string, error) {
+	enumerator, err := serial.GetPortsList()
+	if err != nil {
+		return nil, err
 	}
-	nats.Close()
+	if enumerator == nil {
+		return nil, fmt.Errorf("no serial ports enumerator available")
+	}
+	return enumerator, nil
 }

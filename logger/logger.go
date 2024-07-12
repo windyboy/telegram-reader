@@ -44,12 +44,12 @@ func load() {
 		env := getEnv()
 		fmt.Printf("Enviroment : %s\n", env)
 		configFile, err := getConfigFile(env)
-		fmt.Printf("Config File : %s\n", configFile)
+		// fmt.Printf("Config File : %s\n", configFile)
 		if err != nil {
 			fmt.Printf("Error finding config file: %v\n", err)
 			return
 		}
-		fmt.Printf("Loading config from file: %s\n", configFile)
+		// fmt.Printf("Loading config from file: %s\n", configFile)
 		config, err := loadConfig(configFile)
 		if err != nil {
 			fmt.Printf("Error loading config: %v\n", err)
@@ -80,7 +80,7 @@ func load() {
 
 		log = zap.New(core, zap.AddCaller(), zap.AddStacktrace(zapcore.ErrorLevel))
 		sugar = log.Sugar()
-		fmt.Println("Logger initialized")
+		// fmt.Println("Logger initialized")
 	}
 }
 

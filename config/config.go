@@ -99,7 +99,7 @@ func LoadConfigFromEnv() *Parameter {
 // loadConfig loads the configuration parameters based on the specified environment.
 func loadConfig(env string) *Parameter {
 	configFile := getConfigFileForEnv(env)
-	fmt.Printf("Config File : %s\n", configFile)
+	// fmt.Printf("Config File : %s\n", configFile)
 	file, err := os.Open(configFile)
 	if err != nil {
 		panic(err)
