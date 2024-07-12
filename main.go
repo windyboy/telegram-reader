@@ -141,7 +141,7 @@ func processReceivedData(data []byte) {
 	for _, b := range data {
 		if telegrams := telegram.Append(b); len(telegrams) > 0 {
 			for _, telegramData := range telegrams {
-				if sequence := telegram.GetTelegramSequence(telegramData); sequence != "" {
+				if sequence := telegram.GetSequence(telegramData); sequence != "" {
 					sugar.Infof("Publishing telegram: %s", sequence)
 				}
 				if err := nats.Publish(telegramData); err != nil {
