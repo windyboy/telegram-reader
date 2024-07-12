@@ -2,9 +2,12 @@ package main
 
 import (
 	"fmt"
+	"net/http"
 	"os"
-	"sync/atomic"
 
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/urfave/cli/v2"
 	"go.bug.st/serial"
 	"gzzn.com/airport/serial/config"
@@ -16,9 +19,15 @@ import (
 
 var (
 	parameter *config.Parameter
-	// sugar     *zap.SugaredLogger
-	totalByes     uint64
-	totalTelegram uint64
+
+	totalByes = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "serial_read_byes_total",
+		Help: "The total number bytes read from the serial port",
+	})
+	totalTelegram = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "telegram_total",
+		Help: "The total number of telegrams received",
+	})
 )
 
 // listAvailablePorts returns a list of available serial ports
@@ -109,7 +118,7 @@ func executeReadCommand() error {
 	}()
 
 	for data := range dataChannel {
-		atomic.AddUint64(&totalByes, uint64(len(data)))
+		totalByes.Add(float64(len(data)))
 		processReceivedData(data)
 	}
 	return nil
@@ -143,7 +152,7 @@ func processReceivedData(data []byte) {
 					sugar.Errorf("Error publishing to NATS: %v", err)
 				}
 			}
-			atomic.AddUint64(&totalTelegram, uint64(len(telegrams)))
+			totalTelegram.Add(float64(len(telegrams)))
 		}
 	}
 	sugar.Infof("Total bytes: %d, Total telegrams: %d", totalByes, totalTelegram)
@@ -151,6 +160,14 @@ func processReceivedData(data []byte) {
 
 func main() {
 	app := setupApp()
+	// Expose metrics endpoint
+	go func() {
+		addr := config.GetParameter().Prometheus.Address
+		log := logger.GetLogger()
+		log.Infof("Starting metrics server on %s", addr)
+		http.Handle("/metrics", promhttp.Handler())
+		panic(http.ListenAndServe(addr, nil))
+	}()
 	if err := app.Run(os.Args); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)

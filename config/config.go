@@ -20,9 +20,10 @@ var parameter *Parameter
 
 // Parameter holds the configuration for the application.
 type Parameter struct {
-	Serial   SerialConfig
-	NATS     NATSConfig
-	Telegram TelegramConfig
+	Serial     SerialConfig
+	NATS       NATSConfig
+	Telegram   TelegramConfig
+	Prometheus PrometheusConfig
 }
 
 // SerialConfig holds the serial port configuration.
@@ -54,6 +55,10 @@ type TelegramConfig struct {
 	PatternSplit string `toml:"pattern_split"`
 }
 
+type PrometheusConfig struct {
+	Address string `toml:"address"`
+}
+
 func load() {
 
 	// Get the environment variable
@@ -69,6 +74,8 @@ func load() {
 
 	// Set the global parameter
 	parameter = param
+
+	fmt.Printf("Parameter : %+v\n", parameter)
 
 }
 

@@ -20,3 +20,7 @@ client_id = "serial-client"
 end_tag = "NNNN"
 seq_tag = "ZCZC\\s(\\S+)\\s"
 pattern_split = "(?s)ZCZC.*?NNNN"
+
+
+[prometheus]
+address = "localhost:8888"
