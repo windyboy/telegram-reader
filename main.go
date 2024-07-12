@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"sync/atomic"
 
 	"github.com/urfave/cli/v2"
 	"go.bug.st/serial"
@@ -16,6 +17,8 @@ import (
 var (
 	parameter *config.Parameter
 	// sugar     *zap.SugaredLogger
+	totalByes     uint64
+	totalTelegram uint64
 )
 
 // listAvailablePorts returns a list of available serial ports
@@ -106,6 +109,7 @@ func executeReadCommand() error {
 	}()
 
 	for data := range dataChannel {
+		atomic.AddUint64(&totalByes, uint64(len(data)))
 		processReceivedData(data)
 	}
 	return nil
@@ -128,23 +132,28 @@ func executeListCommand() error {
 // processReceivedData processes received data from the serial port and publishes to NATS
 func processReceivedData(data []byte) {
 	sugar := logger.GetLogger()
-	if telegrams := telegram.Append(string(data)); len(telegrams) > 0 {
-		// sugar.Debugf("Got %d telegrams to publish", len(telegrams))
-		for _, telegramData := range telegrams {
-			if sequence := telegram.GetTelegramSequence(telegramData); sequence != "" {
-				sugar.Infof("Publishing telegram: %s", sequence)
+	for _, b := range data {
+		if telegrams := telegram.Append(b); len(telegrams) > 0 {
+			// sugar.Debugf("Got %d telegrams to publish", len(telegrams))
+			for _, telegramData := range telegrams {
+				if sequence := telegram.GetTelegramSequence(telegramData); sequence != "" {
+					sugar.Infof("Publishing telegram: %s", sequence)
+				}
+				if err := nats.Publish(telegramData); err != nil {
+					sugar.Errorf("Error publishing to NATS: %v", err)
+				}
 			}
-			if err := nats.Publish(telegramData); err != nil {
-				sugar.Errorf("Error publishing to NATS: %v", err)
-			}
+			atomic.AddUint64(&totalTelegram, uint64(len(telegrams)))
 		}
 	}
+	sugar.Infof("Total bytes: %d, Total telegrams: %d", totalByes, totalTelegram)
 }
 
 func main() {
 	app := setupApp()
 	if err := app.Run(os.Args); err != nil {
-		panic(err)
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
 	}
 	nats.Close()
 }

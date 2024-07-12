@@ -9,10 +9,10 @@ import (
 )
 
 var (
-	nc         *nats.Conn
-	initOnce   sync.Once
-	mu         sync.Mutex
-	natsConfig config.NATSConfig
+	nc *nats.Conn
+	// initOnce   sync.Once
+	mu sync.Mutex
+	// natsConfig config.NATSConfig
 )
 
 // InitNATS initializes the NATS connection with the provided URL.

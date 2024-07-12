@@ -45,11 +45,11 @@ func Init() {
 // It locks the buffer to ensure thread safety and releases the lock when done.
 // If a complete telegram is found in the buffer, it resets the buffer and returns the extracted telegrams.
 // Otherwise, it returns nil.
-func Append(data string) []string {
+func Append(b byte) []string {
 	mu.Lock()
 	defer mu.Unlock()
 
-	buffer.WriteString(data)
+	buffer.WriteByte(b)
 	currentBuffer := buffer.String()
 
 	// sugar.Debugf("Buffer: %s", currentBuffer)
