@@ -21,12 +21,14 @@ var (
 	parameter *config.Parameter
 
 	totalByes = promauto.NewCounter(prometheus.CounterOpts{
-		Name: "serial_read_byes_total",
-		Help: "The total number bytes read from the serial port",
+		Namespace: "serial",
+		Name:      "serial_read_byes_total",
+		Help:      "The total number bytes read from the serial port",
 	})
 	totalTelegram = promauto.NewCounter(prometheus.CounterOpts{
-		Name: "telegram_total",
-		Help: "The total number of telegrams received",
+		Namespace: "serial",
+		Name:      "telegram_total",
+		Help:      "The total number of telegrams received",
 	})
 )
 
@@ -99,6 +101,13 @@ func setupApp() *cli.App {
 
 // executeReadCommand handles the logic for the "read" command
 func executeReadCommand() error {
+	go func() {
+		addr := config.GetParameter().Prometheus.Address
+		log := logger.GetLogger()
+		log.Infof("Starting metrics server on %s", addr)
+		http.Handle("/metrics", promhttp.Handler())
+		panic(http.ListenAndServe(addr, nil))
+	}()
 	sugar := logger.GetLogger()
 	telegram.Init()
 	// nats.InitNATS()
@@ -161,13 +170,6 @@ func processReceivedData(data []byte) {
 func main() {
 	app := setupApp()
 	// Expose metrics endpoint
-	go func() {
-		addr := config.GetParameter().Prometheus.Address
-		log := logger.GetLogger()
-		log.Infof("Starting metrics server on %s", addr)
-		http.Handle("/metrics", promhttp.Handler())
-		panic(http.ListenAndServe(addr, nil))
-	}()
 	if err := app.Run(os.Args); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)

@@ -75,7 +75,7 @@ func Close() {
 		sugar.Infof("Closing NATS connection")
 		nc.Close()
 		nc = nil
-	} else {
-		sugar.Infof("NATS connection is already closed or was never initialized")
+		// } else {
+		// sugar.Infof("NATS connection is already closed or was never initialized")
 	}
 }
