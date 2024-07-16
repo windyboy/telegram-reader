@@ -52,6 +52,7 @@ func Append(b byte) []string {
 	if telegrams := getTelegrams(buffer.String()); len(telegrams) > 0 {
 		buffer.Reset() // Reset the buffer if a match is found
 		// logger.GetLogger().Debugf("Got %d telegrams", len(telegrams))
+		// fmt.Println("len :", len(telegrams))
 		return telegrams
 	}
 
@@ -76,6 +77,8 @@ func getTelegrams(data string) []string {
 	if patternEndTag.MatchString(data) {
 		// Split the data based on the end tag pattern
 		telegrams := patternTelegram.FindAllString(data, -1)
+		// fmt.Println("length :", len(telegrams))
+		// fmt.Println(telegrams)
 		return telegrams
 	}
 	return nil
