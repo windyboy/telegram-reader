@@ -18,6 +18,11 @@ import (
 	"gzzn.com/airport/serial/telegram"
 )
 
+const (
+	NatsUrl     = "nats-url"
+	NatsSubject = "nats-subj"
+)
+
 var (
 	parameter *config.Parameter
 
@@ -46,10 +51,6 @@ func setupApp() *cli.App {
 	app := &cli.App{
 		Name:  "serial-read",
 		Usage: "A serial port reading CLI application",
-		Before: func(c *cli.Context) error {
-			parameter = config.GetParameter()
-			return nil
-		},
 		Commands: []*cli.Command{
 			{
 				Name:  "read",
@@ -63,14 +64,14 @@ func setupApp() *cli.App {
 						EnvVars: []string{"CONFIG_PATH"},
 					},
 					&cli.StringFlag{
-						Name:    "nats-url",
+						Name:    NatsUrl,
 						Aliases: []string{"n"},
 						Value:   "nats://localhost:4222",
 						Usage:   "NATS server URL",
 						EnvVars: []string{"NATS_URL"},
 					},
 					&cli.StringFlag{
-						Name:    "nats-subj",
+						Name:    NatsSubject,
 						Aliases: []string{"s"},
 						Value:   "serial.data",
 						Usage:   "NATS subject to publish data to",
@@ -90,11 +91,13 @@ func setupApp() *cli.App {
 }
 
 func executeReadCommand(c *cli.Context) error {
+	parameter = config.GetParameter()
 	sugar := logger.GetLogger()
+	overwriteParameter(c)
 	go startMetricsServer(sugar)
 
 	dataChannel := make(chan []byte)
-	go readFromPort(dataChannel, sugar)
+	go readFromPort(dataChannel, parameter, sugar)
 
 	for data := range dataChannel {
 		totalBytes.Add(float64(len(data)))
@@ -124,9 +127,8 @@ func startMetricsServer(log *zap.SugaredLogger) {
 	panic(http.ListenAndServe(addr, nil))
 }
 
-func readFromPort(dataChannel chan<- []byte, log *zap.SugaredLogger) {
-	// logger := logger.GetLogger()
-	telegram.Init()
+func readFromPort(dataChannel chan<- []byte, parameter *config.Parameter, log *zap.SugaredLogger) {
+	telegram.Init(parameter)
 	mode, portName := config.ReadSerialConfig(parameter.Serial)
 	if err := nats.Connect(parameter.NATS); err != nil {
 		log.Fatalf("Error connecting to NATS: %v", err)
@@ -163,4 +165,15 @@ func listAvailablePorts() ([]string, error) {
 		return nil, fmt.Errorf("no serial ports enumerator available")
 	}
 	return enumerator, nil
+}
+
+func overwriteParameter(c *cli.Context) {
+	parameter = config.GetParameter()
+	if c.IsSet(NatsUrl) {
+		parameter.NATS.URLS = c.String(NatsUrl)
+	}
+
+	if c.IsSet(NatsSubject) {
+		parameter.NATS.Subject = c.String(NatsSubject)
+	}
 }

@@ -22,12 +22,12 @@ var (
 // Init initializes the telegram package.
 // It retrieves the telegram configuration from the parameter and sets up the end tag pattern.
 // It also initializes the logger.
-func Init() {
+func Init(parameter *config.Parameter) {
 	if patternEndTag != nil {
 		return
 	}
 	// Retrieve the telegram configuration from the parameter
-	telegramConfig = config.GetParameter().Telegram
+	telegramConfig = parameter.Telegram
 
 	// Set up the end tag pattern using the configuration
 	patternEndTag = regexp.MustCompile(telegramConfig.EndTag)

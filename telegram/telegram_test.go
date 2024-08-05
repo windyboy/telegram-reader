@@ -19,8 +19,9 @@ var _ = Describe("Telegram Processing", func() {
 	// var telegramConfig config.TelegramConfig
 	// Setup common to all tests in this suite.
 	BeforeEach(func() {
-		telegramConfig = config.GetParameter().Telegram
-		Init()
+		parameter := config.GetParameter()
+		telegramConfig = parameter.Telegram
+		Init(parameter)
 	})
 
 	Context("When processing a complete telegram string", func() {
