@@ -94,7 +94,7 @@ func executeReadCommand(c *cli.Context) error {
 	parameter = config.GetParameter()
 	sugar := logger.GetLogger()
 	overwriteParameter(c)
-	go startMetricsServer(sugar)
+	go startMetricsServer(parameter, sugar)
 
 	dataChannel := make(chan []byte)
 	go readFromPort(dataChannel, parameter, sugar)
@@ -119,8 +119,8 @@ func executeListCommand(c *cli.Context) error {
 	return nil
 }
 
-func startMetricsServer(log *zap.SugaredLogger) {
-	addr := config.GetParameter().Prometheus.Address
+func startMetricsServer(parameter *config.Parameter, log *zap.SugaredLogger) {
+	addr := parameter.Prometheus.Address
 	// log := logger.GetLogger()
 	log.Infof("Starting metrics server on %s", addr)
 	http.Handle("/metrics", promhttp.Handler())
