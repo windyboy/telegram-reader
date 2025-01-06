@@ -8,7 +8,7 @@ import (
 
 	"github.com/BurntSushi/toml"
 	serial "go.bug.st/serial"
-	"gzzn.com/airport/serial/internal/logger"
+	// "gzzn.com/airport/serial/internal/logger"
 )
 
 const (
@@ -80,8 +80,8 @@ func load() error {
 func GetParameter() *Parameter {
 	if parameter == nil {
 		if err := load(); err != nil {
-			logger.GetLogger().Errorf("Failed to load configuration: %v", err)
-			return nil // Handle error appropriately
+			fmt.Printf("Failed to load configuration: %v\n", err)
+			return nil
 		}
 	}
 	return parameter
