@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/BurntSushi/toml"
+	serial "go.bug.st/serial"
 	"gzzn.com/airport/serial/internal/logger"
 )
 
@@ -134,4 +135,32 @@ func getConfigFileForEnv(env string) string {
 	default:
 		return ProdConfigFile
 	}
+}
+
+// ReadSerialConfig returns the serial mode and port name from the SerialConfig.
+func ReadSerialConfig(serialConfig SerialConfig) (mode *serial.Mode, portName string) {
+	portName = serialConfig.Name
+
+	// Convert string parity to serial.Parity
+	var parity serial.Parity
+	switch serialConfig.Parity {
+	case "none":
+		parity = serial.NoParity
+	case "odd":
+		parity = serial.OddParity
+	case "even":
+		parity = serial.EvenParity
+	default:
+		parity = serial.NoParity
+	}
+
+	mode = &serial.Mode{
+		BaudRate: serialConfig.Baud,
+		DataBits: serialConfig.Size,
+		Parity:   parity,
+		StopBits: serial.StopBits(serialConfig.StopBits),
+		// Add flow control if needed
+		// FlowControl: serialConfig.FlowControl,
+	}
+	return
 }
