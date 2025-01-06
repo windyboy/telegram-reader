@@ -3,14 +3,15 @@ package config
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/BurntSushi/toml"
 	serial "go.bug.st/serial"
 )
 
 const (
-	ProdConfigFile     = "./config.toml"
-	TestConfigFile     = "./config.test.toml"
+	ProdConfigFile     = "config.toml"
+	TestConfigFile     = "config.test.toml"
 	TelegramModeEnvVar = "TELE_MODE"
 )
 
@@ -99,8 +100,15 @@ func LoadConfigFromEnv() *Parameter {
 // loadConfig loads the configuration parameters based on the specified environment.
 func loadConfig(env string) *Parameter {
 	configFile := getConfigFileForEnv(env)
-	// fmt.Printf("Config File : %s\n", configFile)
-	file, err := os.Open(configFile)
+	// Get current directory
+	currentDir, err := os.Getwd()
+	if err != nil {
+		panic(err)
+	}
+	configPath := filepath.Join(currentDir, "internal/config", configFile)
+
+	// fmt.Printf("Config File : %s\n", configPath)
+	file, err := os.Open(configPath)
 	if err != nil {
 		panic(err)
 	}

@@ -6,7 +6,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	"gzzn.com/airport/serial/config"
+	"gzzn.com/airport/serial/internal/config"
 )
 
 // TestTelegram runs the test suite for the Telegram package.

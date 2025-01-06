@@ -1,0 +1,7 @@
+branches:
+  - name: develop
+    source: gitbutler/workspace
+    tasks:
+      - rebase
+      - merge
+      - push
