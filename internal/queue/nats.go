@@ -1,11 +1,11 @@
-package nats
+package queue
 
 import (
 	"sync"
 
 	"github.com/nats-io/nats.go"
-	"gzzn.com/airport/serial/config"
-	"gzzn.com/airport/serial/logger"
+	"gzzn.com/airport/serial/internal/config"
+	"gzzn.com/airport/serial/internal/logger"
 )
 
 var (

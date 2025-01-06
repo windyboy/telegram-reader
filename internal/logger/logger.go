@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -11,8 +12,8 @@ import (
 )
 
 const (
-	TestConfigFileName = "./logger.test.json"
-	ProdConfigFileName = "./logger.json"
+	TestConfigFileName = "logger.test.json"
+	ProdConfigFileName = "logger.json"
 	EnvTest            = "test"
 	EnvProd            = "prod"
 )
@@ -49,8 +50,15 @@ func load() {
 			fmt.Printf("Error finding config file: %v\n", err)
 			return
 		}
+		currentDir, err := os.Getwd()
+		if err != nil {
+			panic(err)
+		}
 		// fmt.Printf("Loading config from file: %s\n", configFile)
-		config, err := loadConfig(configFile)
+		// config, err := loadConfig(configFile)
+		file := filepath.Join(currentDir, "internal/logger", configFile)
+		config, err := loadConfig(file)
+
 		if err != nil {
 			fmt.Printf("Error loading config: %v\n", err)
 			return
@@ -58,6 +66,13 @@ func load() {
 
 		var logWriter zapcore.WriteSyncer
 		if env == EnvProd {
+			// Ensure log directory exists
+			logDir := filepath.Dir(config.LumberjackConfig.Filename)
+			if err := os.MkdirAll(logDir, 0755); err != nil {
+				fmt.Printf("Error creating log directory: %v\n", err)
+				return
+			}
+
 			logWriter = zapcore.AddSync(&lumberjack.Logger{
 				Filename:   config.LumberjackConfig.Filename,
 				MaxSize:    config.LumberjackConfig.MaxSize,

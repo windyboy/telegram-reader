@@ -5,7 +5,7 @@ import (
 	"regexp"
 	"sync"
 
-	"gzzn.com/airport/serial/config"
+	"gzzn.com/airport/serial/internal/config"
 )
 
 const SequenceUnknow = "TMQ----"

@@ -11,11 +11,11 @@ import (
 	"github.com/urfave/cli/v2"
 	"go.bug.st/serial"
 	"go.uber.org/zap"
-	"gzzn.com/airport/serial/config"
-	"gzzn.com/airport/serial/logger"
-	nats "gzzn.com/airport/serial/queue"
-	internalSerial "gzzn.com/airport/serial/serial"
-	"gzzn.com/airport/serial/telegram"
+	"gzzn.com/airport/serial/internal/config"
+	"gzzn.com/airport/serial/internal/logger"
+	nats "gzzn.com/airport/serial/internal/queue"
+	internalSerial "gzzn.com/airport/serial/internal/serial"
+	"gzzn.com/airport/serial/internal/telegram"
 )
 
 const (

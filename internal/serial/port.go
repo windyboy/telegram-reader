@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	serial "go.bug.st/serial"
-	"gzzn.com/airport/serial/logger"
+	"gzzn.com/airport/serial/internal/logger"
 )
 
 // ReadFromPort reads data from a serial port and sends it over a channel.
