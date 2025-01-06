@@ -4,9 +4,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 
 	"github.com/BurntSushi/toml"
-	serial "go.bug.st/serial"
+	"gzzn.com/airport/serial/internal/logger"
 )
 
 const (
@@ -15,15 +16,15 @@ const (
 	TelegramModeEnvVar = "TELE_MODE"
 )
 
-var parameter *Parameter
-
-// var initialized = false
+var (
+	parameter *Parameter
+	once      sync.Once
+)
 
 // Parameter holds the configuration for the application.
 type Parameter struct {
 	Serial     SerialConfig
 	NATS       NATSConfig
-	Telegram   TelegramConfig
 	Prometheus PrometheusConfig
 }
 
@@ -49,76 +50,78 @@ type NATSConfig struct {
 	ClientId  string `toml:"client_id"`
 }
 
-// TelegramConfig holds the Telegram configuration.
-type TelegramConfig struct {
-	EndTag       string `toml:"end_tag"`
-	SeqTag       string `toml:"seq_tag"`
-	PatternSplit string `toml:"pattern_split"`
-}
-
+// PrometheusConfig holds the Prometheus configuration.
 type PrometheusConfig struct {
 	Address string `toml:"address"`
 }
 
-func load() {
-
-	// Get the environment variable
+// getEnvironment retrieves the TELE_MODE environment variable or defaults to "test".
+func getEnvironment() string {
 	env := os.Getenv(TelegramModeEnvVar)
 	if env == "" {
 		env = "test"
 	}
-	// fmt.Printf("Environment : %s\n", env)
-	// Load the configuration based on the environment
-	param := loadConfig(env)
+	return env
+}
 
-	// fmt.Printf("Config : %+v\n", param)
-
-	// Set the global parameter
-	parameter = param
-
-	fmt.Printf("Parameter : %+v\n", parameter)
-
+// load initializes the configuration by loading the appropriate config file.
+func load() error {
+	var err error
+	once.Do(func() {
+		env := getEnvironment()
+		parameter, err = loadConfig(env)
+	})
+	return err
 }
 
 // GetParameter returns the initialized global parameter.
+// It loads the configuration if it hasn't been loaded yet.
 func GetParameter() *Parameter {
 	if parameter == nil {
-		load()
+		if err := load(); err != nil {
+			logger.GetLogger().Errorf("Failed to load configuration: %v", err)
+			return nil // Handle error appropriately
+		}
 	}
 	return parameter
 }
 
-// LoadConfigFromEnv loads the configuration parameters based on the TELE_MODE environment variable.
-func LoadConfigFromEnv() *Parameter {
-	env := os.Getenv(TelegramModeEnvVar)
-	if env == "" {
-		env = "test"
-	}
-	return loadConfig(env)
-}
-
-// loadConfig loads the configuration parameters based on the specified environment.
-func loadConfig(env string) *Parameter {
+// loadConfig loads the configuration based on the provided environment.
+// It returns a Parameter and an error if loading fails.
+func loadConfig(env string) (*Parameter, error) {
 	configFile := getConfigFileForEnv(env)
-	// Get current directory
 	currentDir, err := os.Getwd()
 	if err != nil {
-		panic(err)
+		return nil, fmt.Errorf("error getting current directory: %w", err)
 	}
 	configPath := filepath.Join(currentDir, "internal/config", configFile)
 
-	// fmt.Printf("Config File : %s\n", configPath)
 	file, err := os.Open(configPath)
 	if err != nil {
-		panic(err)
+		return nil, fmt.Errorf("error opening config file: %w", err)
 	}
 	defer file.Close()
 
 	var config Parameter
 	if _, err := toml.NewDecoder(file).Decode(&config); err != nil {
-		panic(err)
+		return nil, fmt.Errorf("error decoding config file: %w", err)
 	}
-	return &config
+
+	// Set default values if necessary
+	setDefaultValues(&config)
+
+	return &config, nil
+}
+
+// setDefaultValues sets default values for the configuration parameters.
+func setDefaultValues(config *Parameter) {
+	if config.Serial.Name == "" {
+		config.Serial.Name = "COM1" // Default value
+	}
+	if config.Serial.Baud == 0 {
+		config.Serial.Baud = 9600 // Default value
+	}
+	// Set other defaults as needed
 }
 
 // getConfigFileForEnv returns the appropriate configuration file for the given environment.
@@ -130,41 +133,5 @@ func getConfigFileForEnv(env string) string {
 		return TestConfigFile
 	default:
 		return ProdConfigFile
-	}
-}
-
-// ReadSerialConfig converts the SerialConfig to a serial.Mode and returns the name of the serial port.
-func ReadSerialConfig(serialConfig SerialConfig) (*serial.Mode, string) {
-	return &serial.Mode{
-		BaudRate: serialConfig.Baud,
-		DataBits: serialConfig.Size,
-		Parity:   parseParity(serialConfig.Parity),
-		StopBits: parseStopBits(serialConfig.StopBits),
-	}, serialConfig.Name
-}
-
-// parseParity converts the parity string to a corresponding serial.Parity value.
-func parseParity(parity string) serial.Parity {
-	switch parity {
-	case "N":
-		return serial.NoParity
-	case "O":
-		return serial.OddParity
-	case "E":
-		return serial.EvenParity
-	default:
-		return serial.NoParity
-	}
-}
-
-// parseStopBits converts the stop bits int value to the corresponding serial.StopBits value.
-func parseStopBits(stopBits int) serial.StopBits {
-	switch stopBits {
-	case 1:
-		return serial.OneStopBit
-	case 2:
-		return serial.TwoStopBits
-	default:
-		return serial.OneStopBit
 	}
 }
