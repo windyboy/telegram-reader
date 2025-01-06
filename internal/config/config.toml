@@ -17,7 +17,7 @@ subject = "telegram"
 cluster_id = "test-cluster"
 client_id = "serial-client"
 
-[telegram]
-end_tag = "NNNN"
-seq_tag = "ZCZC\\s(\\S+)\\s"
-pattern_split = "(?s)ZCZC.*?NNNN"
+# [telegram]
+# end_tag = "NNNN"
+# seq_tag = "ZCZC\\s(\\S+)\\s"
+# pattern_split = "(?s)ZCZC.*?NNNN"

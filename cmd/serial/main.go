@@ -39,12 +39,17 @@ var (
 )
 
 func main() {
+	log := logger.GetLogger()
+	log.Info("Application starting...")
+
 	app := setupApp()
 	if err := app.Run(os.Args); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
 	nats.Close()
+
+	log.Info("Application finished successfully.")
 }
 
 func setupApp() *cli.App {

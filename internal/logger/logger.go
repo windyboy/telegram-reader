@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"path/filepath"
+	"sync"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -34,45 +34,29 @@ type LumberjackConfig struct {
 }
 
 var (
-	sugar *zap.SugaredLogger
 	log   *zap.Logger
-	// once  sync.Once
+	sugar *zap.SugaredLogger
+	once  sync.Once
 )
 
 // load initializes the logger. It ensures that the logger is initialized only once.
 func load() {
-	if log == nil {
+	once.Do(func() {
 		env := getEnv()
-		fmt.Printf("Enviroment : %s\n", env)
 		configFile, err := getConfigFile(env)
-		// fmt.Printf("Config File : %s\n", configFile)
 		if err != nil {
-			fmt.Printf("Error finding config file: %v\n", err)
+			fmt.Fprintf(os.Stderr, "Error finding config file: %v\n", err)
 			return
 		}
-		currentDir, err := os.Getwd()
-		if err != nil {
-			panic(err)
-		}
-		// fmt.Printf("Loading config from file: %s\n", configFile)
-		// config, err := loadConfig(configFile)
-		file := filepath.Join(currentDir, "internal/logger", configFile)
-		config, err := loadConfig(file)
 
+		config, err := loadConfig(configFile)
 		if err != nil {
-			fmt.Printf("Error loading config: %v\n", err)
+			fmt.Fprintf(os.Stderr, "Error loading config: %v\n", err)
 			return
 		}
 
 		var logWriter zapcore.WriteSyncer
 		if env == EnvProd {
-			// Ensure log directory exists
-			logDir := filepath.Dir(config.LumberjackConfig.Filename)
-			if err := os.MkdirAll(logDir, 0755); err != nil {
-				fmt.Printf("Error creating log directory: %v\n", err)
-				return
-			}
-
 			logWriter = zapcore.AddSync(&lumberjack.Logger{
 				Filename:   config.LumberjackConfig.Filename,
 				MaxSize:    config.LumberjackConfig.MaxSize,
@@ -95,8 +79,9 @@ func load() {
 
 		log = zap.New(core, zap.AddCaller(), zap.AddStacktrace(zapcore.ErrorLevel))
 		sugar = log.Sugar()
-		// fmt.Println("Logger initialized")
-	}
+
+		sugar.Infof("Logger initialized in %s environment", env)
+	})
 }
 
 // getEnv retrieves the logging environment from the TELE_MODE environment variable.
@@ -135,11 +120,9 @@ func loadConfig(configFile string) (LoggerConfig, error) {
 	return config, nil
 }
 
-// GetLogger returns the initialized SugaredLogger instance.
+// GetLogger returns the initialized logger.
 func GetLogger() *zap.SugaredLogger {
-	if sugar == nil {
-		load()
-	}
+	load() // Ensure the logger is loaded
 	return sugar
 }
 
