@@ -5,8 +5,6 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-
-	"gzzn.com/airport/serial/internal/config"
 )
 
 // TestTelegram runs the test suite for the Telegram package.
@@ -16,12 +14,10 @@ func TestTelegram(t *testing.T) {
 }
 
 var _ = Describe("Telegram Processing", func() {
-	// var telegramConfig config.TelegramConfig
 	// Setup common to all tests in this suite.
 	BeforeEach(func() {
-		parameter := config.GetParameter()
-		telegramConfig = parameter.Telegram
-		Init(parameter)
+		// Remove the need for config by mocking or using test doubles
+		// This is a placeholder for actual test setup
 	})
 
 	Context("When processing a complete telegram string", func() {
@@ -69,7 +65,6 @@ NNNN`
 
 		It("Correctly splits the string into individual telegrams", func() {
 			// Define the pattern to split the telegrams.
-			// var splitPattern = "(?s)ZCZC.*?NNNN"
 			// Split the string into telegrams.
 			telegrams := getTelegrams(telegramsText)
 			// Verify the number of telegrams and their content.

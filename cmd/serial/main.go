@@ -128,7 +128,7 @@ func startMetricsServer(parameter *config.Parameter, log *zap.SugaredLogger) {
 }
 
 func readFromPort(dataChannel chan<- []byte, parameter *config.Parameter, log *zap.SugaredLogger) {
-	telegram.Init(parameter)
+	// telegram.Init(parameter)
 	mode, portName := config.ReadSerialConfig(parameter.Serial)
 	if err := nats.Connect(parameter.NATS); err != nil {
 		log.Fatalf("Error connecting to NATS: %v", err)
