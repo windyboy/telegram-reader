@@ -39,12 +39,17 @@ var (
 )
 
 func main() {
+	log := logger.GetLogger()
+	log.Info("Application starting...")
+
 	app := setupApp()
 	if err := app.Run(os.Args); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
 	nats.Close()
+
+	log.Info("Application finished successfully.")
 }
 
 func setupApp() *cli.App {
@@ -128,7 +133,7 @@ func startMetricsServer(parameter *config.Parameter, log *zap.SugaredLogger) {
 }
 
 func readFromPort(dataChannel chan<- []byte, parameter *config.Parameter, log *zap.SugaredLogger) {
-	telegram.Init(parameter)
+	// telegram.Init(parameter)
 	mode, portName := config.ReadSerialConfig(parameter.Serial)
 	if err := nats.Connect(parameter.NATS); err != nil {
 		log.Fatalf("Error connecting to NATS: %v", err)

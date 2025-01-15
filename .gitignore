@@ -81,3 +81,5 @@ tmp/
 # Static analysis tool artifacts
 staticcheck.conf
 .errcache
+
+config.dev.toml

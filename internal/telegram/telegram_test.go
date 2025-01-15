@@ -5,27 +5,10 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-
-	"gzzn.com/airport/serial/internal/config"
 )
 
-// TestTelegram runs the test suite for the Telegram package.
-func TestTelegram(t *testing.T) {
-	RegisterFailHandler(Fail)
-	RunSpecs(t, "Telegram Suite")
-}
-
 var _ = Describe("Telegram Processing", func() {
-	// var telegramConfig config.TelegramConfig
-	// Setup common to all tests in this suite.
-	BeforeEach(func() {
-		parameter := config.GetParameter()
-		telegramConfig = parameter.Telegram
-		Init(parameter)
-	})
-
 	Context("When processing a complete telegram string", func() {
-		// Example telegram string.
 		const telegramText = `ZCZC TMQ2627 151600
 FF ZBTJZXZX
 151600 ZGSDZTZX
@@ -33,16 +16,12 @@ FF ZBTJZXZX
 NNNN`
 
 		It("Extracts the correct sequence from the telegram", func() {
-			// Define the pattern to extract the sequence.
-			// Extract the sequence.
 			sequence := GetSequence(telegramText)
-			// Verify the extracted sequence is as expected.
 			Expect(sequence).To(Equal("TMQ2627"), "The extracted sequence should match the expected value.")
 		})
 	})
 
 	Context("When processing a string containing multiple telegrams", func() {
-		// Example string containing two telegrams.
 		const telegramsText = `ZCZC TMQ2611 151524
 FF ZBTJZPZX
 151524 ZGGGZPZX
@@ -55,27 +34,58 @@ FF ZBTJZPZX
 (ARR-CXA8324/A4001-ZLXY-ZBTJ1522)
 NNNN`
 
-		// Expected individual telegrams after splitting.
-		const expectedFirstTelegram = `ZCZC TMQ2611 151524
+		It("Correctly splits the string into individual telegrams", func() {
+			telegrams := getTelegrams(telegramsText)
+			Expect(telegrams).To(HaveLen(2), "There should be exactly two telegrams.")
+			Expect(telegrams[0]).To(Equal(`ZCZC TMQ2611 151524
 FF ZBTJZPZX
 151524 ZGGGZPZX
 (ARR-CSN3136/A0006-ZBTJ-ZGGG1521)
-NNNN`
-		const expectedSecondTelegram = `ZCZC TMQ2609 151524
+NNNN`), "The first telegram should match the expected content.")
+			Expect(telegrams[1]).To(Equal(`ZCZC TMQ2609 151524
 FF ZBTJZPZX
 151523 ZBACZQZX
 (ARR-CXA8324/A4001-ZLXY-ZBTJ1522)
+NNNN`), "The second telegram should match the expected content.")
+		})
+	})
+
+	Context("When processing an empty telegram string", func() {
+		const emptyText = ""
+
+		It("Returns an empty slice", func() {
+			telegrams := getTelegrams(emptyText)
+			Expect(telegrams).To(BeEmpty(), "The result should be an empty slice.")
+		})
+	})
+
+	Context("When processing a malformed telegram string", func() {
+		const malformedText = `ZCZC TMQ2627 151600
+FF ZBTJZXZX
 NNNN`
 
-		It("Correctly splits the string into individual telegrams", func() {
-			// Define the pattern to split the telegrams.
-			// var splitPattern = "(?s)ZCZC.*?NNNN"
-			// Split the string into telegrams.
-			telegrams := getTelegrams(telegramsText)
-			// Verify the number of telegrams and their content.
-			Expect(telegrams).To(HaveLen(2), "There should be exactly two telegrams.")
-			Expect(telegrams[0]).To(Equal(expectedFirstTelegram), "The first telegram should match the expected content.")
-			Expect(telegrams[1]).To(Equal(expectedSecondTelegram), "The second telegram should match the expected content.")
+		It("Handles the malformed telegram gracefully", func() {
+			telegrams := getTelegrams(malformedText)
+			Expect(telegrams).To(HaveLen(1), "There should be one telegram despite being malformed.")
+			Expect(telegrams[0]).To(ContainSubstring("TMQ2627"), "The telegram should still contain the sequence.")
+		})
+	})
+
+	Context("When processing a telegram with missing end tag", func() {
+		const missingEndTagText = `ZCZC TMQ2627 151600
+FF ZBTJZXZX
+151600 ZGSDZTZX
+(DEP-OKA2832/A2426-ZGSD1600-ZBTJ)`
+
+		It("Returns an empty slice", func() {
+			telegrams := getTelegrams(missingEndTagText)
+			Expect(telegrams).To(BeEmpty(), "The result should be an empty slice due to missing end tag.")
 		})
 	})
 })
+
+// Run the tests
+func TestTelegram(t *testing.T) {
+	RegisterFailHandler(Fail)
+	RunSpecs(t, "Telegram Suite")
+}
