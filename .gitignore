@@ -27,7 +27,7 @@ Thumbs.db
 
 # Go Modules
 /go.sum
-/go.mod
+# /go.mod
 
 # Local go build cache
 *.out
